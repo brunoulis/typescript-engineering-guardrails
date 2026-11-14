@@ -1,6 +1,7 @@
 {
   "name": "typescript-engineering-guardrails",
   "version": "1.2.0",
+  "license": "MIT",
   "private": true,
   "description": "Read-only TypeScript syntax triage and engineering references",
   "engines": { "node": ">=22" },

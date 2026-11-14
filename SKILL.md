@@ -1,5 +1,6 @@
 ---
 name: typescript-engineering-guardrails
+license: MIT
 description: Evidence-based anti-slop engineering for TypeScript backends on Node.js, Bun and Deno, including Hono, Better Auth and Drizzle. Use for implementation, security/architecture audit, refactoring, migration, performance and independent review.
 metadata:
   version: "1.2.0"

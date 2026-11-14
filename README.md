@@ -64,3 +64,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for positive/negative regressions, real b
 [Code organization](references/code-organization.md) preserves dedicated feature-local declarations without empty folders, duplicate schema types or one interface per class. The example follows that convention.
 
 For each scanner lead, record one decision: fixed and verified; legitimate use retained; or investigation deferred with a concrete open question. A documented fallback catch or intentionally disabled test security setting may remain unchanged. Do not add artificial abstractions or blanket suppressions to make signals disappear.
+
+## License
+
+MIT. See [LICENSE](LICENSE). Third-party dependencies retain their respective licenses.
