@@ -1,0 +1,32 @@
+name: TypeScript guardrails validation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24.22.1'
+          package-manager-cache: false
+      - name: Install locked scanner dependencies
+        run: npm ci --ignore-scripts
+      - name: Install locked backend example dependencies
+        run: npm --prefix examples/backend ci --ignore-scripts
+      - name: Verify scanner and real backend example
+        run: npm run verify

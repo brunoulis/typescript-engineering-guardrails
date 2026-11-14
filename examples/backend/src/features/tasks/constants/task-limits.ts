@@ -1,0 +1,2 @@
+export const MAX_TITLE_LENGTH = 200;
+export const MAX_IDEMPOTENCY_KEY_LENGTH = 128;
