@@ -1,0 +1,30 @@
+{
+  "name": "guardrails-data-evidence",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "test:postgres": "node --experimental-strip-types --test test/postgresql.test.ts",
+    "test:timescale": "node --experimental-strip-types --test test/timescale.test.ts",
+    "test:runtime": "node src/run-runtime.ts",
+    "db:up": "node --experimental-strip-types src/provision.ts up",
+    "db:down": "node --experimental-strip-types src/provision.ts down",
+    "test:bun": "bun src/run-runtime.ts",
+    "test:deno": "deno task check && deno task test",
+    "test:deno-permissions": "node src/verify-deno-permissions.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.4",
+    "hono": "4.13.19",
+    "pg": "8.16.3",
+    "postgres": "3.4.7"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.10",
+    "@types/node": "24.10.1",
+    "@types/pg": "8.15.6",
+    "typescript": "6.0.3"
+  }
+}

@@ -1,70 +1,91 @@
 # TypeScript Engineering Guardrails — Node, Bun, Deno
 
-A portable backend engineering skill for audit, implementation and behavior-preserving refactoring. **Preferred convention: feature-local `types/`, `interfaces/` and `constants/`; shared definitions only when genuinely shared; runtime validators in `schemas/`.** Existing project conventions and scoped changes take precedence over unnecessary rearrangement.
+A portable skill for backend implementation, audit, review and refactoring, with a read-only TypeScript auditor and executable HTTP/database evidence. Preserve feature-local `types/`, `interfaces/` and `constants/`, runtime validators in `schemas/`, and existing project conventions without empty scaffolding.
 
-Version **1.2.0** adds reproducible tooling, regression tests, explicit incomplete reports, a real Hono/SQLite example and pinned upstream source evidence. The scanner remains syntax triage; it does not certify a backend's security.
+**2.0.0** adds strict TypeScript tool sources, optional semantic context and dependency analysis, separate quality dimensions, JSON configuration, baselines/SARIF, controlled external integrations and real PostgreSQL/TimescaleDB examples. Findings remain P2/P3 **HEURISTIC** review leads. No scan certifies security, authorization, test quality or production readiness.
 
-## Install and prepare
+## Prepare and run
 
-See [INSTALL.md](INSTALL.md) for folder/skills CLI installation, Codex/Claude Code/Hermes paths, language-scoped activation and discovery checks. The instructions can be installed without preparing the optional scanner; your types/interfaces/constants convention remains part of the skill.
+See [installation](INSTALL.md) for portable folder and host discovery instructions. Instructions can be used without installing the optional tool dependencies. For the auditor, run inside this skill folder, never inside the audited application:
 
-Place this skill folder in your agent's supported skill directory (for example `.agents/skills/typescript-engineering-guardrails/`). Include scripts, references, templates and examples. Development audit logs and corpus clones live outside this folder.
+```sh
+npm ci --ignore-scripts
+npm run build
+node scripts/ts-rails-audit.cjs --root /path/to/backend --format text
+```
 
-To use the scanner, prepare its dependency **inside this folder**, not the audited project:
+The complete tool dependency set requires **Node >=22.13.0**; local full verification uses **24.22.1**. The lock pins TypeScript **6.0.3**. Build produces the compatible legacy `.cjs` entry from TypeScript; generated JavaScript is not maintained source. The default compiler comes from this skill, not the target's node_modules. An absolute `TS_RAILS_TYPESCRIPT_PATH` deliberately selects a trusted executable compiler module; an invalid override fails.
 
-    npm ci --ignore-scripts
-    npm test
-    npm run check
+Example request:
 
-Node 22+ runs the scanner; validation used Node 24.22.1. The lockfile pins TypeScript **6.0.3**, which exposes the JavaScript compiler API used here. The target project's compiler is not automatically loaded. A deliberately selected trusted compiler can be supplied through an absolute `TS_RAILS_TYPESCRIPT_PATH`; an invalid override fails. No automatic target install, lockfile update, compiler upgrade or source fix occurs.
+> Use typescript-engineering-guardrails in audit mode with api, auth and database profiles. Verify deployed versions, validation, tenant permissions, transactions, asynchronous limits and unnecessary abstractions. Keep the audit read-only and report evidence, confidence and unresolved checks.
 
-## Use
+## Select the evidence
 
-Example agent request:
+```sh
+# Default syntax triage, selected source scope
+node scripts/ts-rails-audit.cjs --root /path/to/backend --path src --exclude-tests --format json
+# Explicit semantic project context, graph and quality dimensions
+node scripts/ts-rails-audit.cjs --root /path/to/backend --mode typed --project tsconfig.json --score --format json
+# Opt-in, pinned external tools on a controlled source snapshot
+node scripts/ts-rails-audit.cjs --root /path/to/backend --integration knip --integration dependency-cruiser
+```
 
-> Use typescript-engineering-guardrails in audit mode with api, auth and database profiles. Read-only. Identify deployed versions; inspect validation, tenant permissions, transactions, async limits and unnecessary abstractions. Report evidence, confidence, minimal remedies and verification. Keep our types/interfaces/constants convention.
+Typed mode reads admitted tsconfig/project context without executing project configuration or emitting application files. Missing dependencies/configuration, selected files outside the program and unsupported reads remain diagnostics and make analysis incomplete. It does not install missing target dependencies. Quality dimensions remain separate 0–3 values or `null`; there is no total. Test import reachability is not behavioral coverage. See [scanner contract](references/scanner.md), [quality dimensions](references/quality-score.md) and [framework/integration limits](references/framework-signals.md).
 
-From this skill directory:
+Explicit `--config /trusted/path/rails.json` loads validated JSON (`version: 1`), not executable JS configuration. CLI options override corresponding configured options. For example:
 
-    node scripts/ts-rails-audit.cjs --root /path/to/backend --format text
-    node scripts/ts-rails-audit.cjs --root /path/to/backend --path src --exclude-tests --format json
+```json
+{
+  "version": 1,
+  "mode": "typed",
+  "project": "tsconfig.json",
+  "score": true,
+  "boundaries": [{ "from": "src/domain", "disallow": ["hono", "src/http"] }]
+}
+```
 
-Use an absolute script path from other directories. JSON is written to stdout; shell redirection writes wherever you specify, so choose a permitted report destination.
+External integrations use Knip **6.45.1** and dependency-cruiser **18.7.2** with tool-owned temporary configuration, selected source copies and sanitized root dependency/dev/optional names and versions. All installed runtime Knip plugins are explicitly disabled; target scripts, exports, workspaces, executable configuration and node_modules are omitted. The results identify possible unused exports/files/dependencies and cycles in that snapshot. Dependency candidates may be used through omitted assets, framework configuration or workspace entry points; the integration cannot establish full-project unused dependencies. Timeout/failure is incomplete analysis. The explicit [typescript-eslint recipe](tool/src/recipes/typed-eslint.ts) uses typescript-eslint **8.73.0** / ESLint **10.15.0** for promise rules in a trusted project; it is not an automatic target hook.
 
-The eight rules cover explicit any, non-null assertions, empty catches, raw JSON assertions, security toggles, mapped Promise.all, TS suppressions and broad Deno task permissions. Findings are P2/P3 `HEURISTIC` leads. Scope is reported as source/test/config; an auth test is not a production vulnerability.
+## Baselines, reports and policy
 
-Exit `0` means a complete scan of the selected syntax, `1` means an execution/configuration/incomplete-analysis error, `2` means signals triggered the explicit `--fail-on-signals` policy. A zero-signal report never proves security. See [scanner contract and limitations](references/scanner.md) for scope, skipped files, diagnostics and programmatic APIs.
+```sh
+# Choose an authorized, dedicated report destination; its parent must exist
+node scripts/ts-rails-audit.cjs --root /path/to/backend --write-baseline /reports/backend-baseline.json
+node scripts/ts-rails-audit.cjs --root /path/to/backend --baseline /reports/backend-baseline.json --fail-on-new --format sarif
+```
 
-## Executable backend example
+JSON reports retain `schemaVersion: 1`; SARIF is 2.1.0. Baselines bind mode, enabled rules and normalized scope. Unrelated line insertion keeps finding identity stable; identical repeated contexts can remain ambiguous. Incomplete or incompatible scans cannot establish that absent findings were fixed. Baseline creation rejects incomplete reports and unsafe destinations; existing files require explicit `--replace-baseline`, and replacement is limited to a recognized baseline.
 
-The independent [Hono + SQLite package](examples/backend/README.md) demonstrates the folder convention with an injected authentication port, strict input schemas, actor/tenant predicates, scoped idempotency and an atomic outbox write:
+Exit **0** means complete selected analysis; **1** means execution/configuration/incomplete-analysis failure; **2** means the explicit `--fail-on-signals` or valid `--fail-on-new` policy found triggering leads. Signals never become confirmed vulnerabilities merely because a policy failed. JSON/SARIF go to stdout; shell redirection is an additional write to the destination you choose.
 
-    npm --prefix examples/backend ci --ignore-scripts
-    npm --prefix examples/backend run check
+## Executable examples
 
-Use the example's documented Node 24 version. Tests exercise actual Hono Request/Response handling and SQLite, including a trigger-induced database failure. Authentication tokens are test fixtures; no production session adapter, Better Auth integration, Drizzle driver or distributed delivery is implied.
+| Independent package | Evidence |
+| --- | --- |
+| [Hono/SQLite](examples/backend/README.md) | Fast HTTP regression, injected verified identity, actor/tenant authorization, allowlisted input, idempotency and actual SQLite rollback |
+| [Hono/Better Auth/Drizzle/PostgreSQL](examples/postgres-backend/README.md) | Real signup/login/session cookies, persisted membership, restricted app login, concurrent idempotency and task/outbox rollback under actual PostgreSQL failure |
+| [PostgreSQL/TimescaleDB data](examples/data/README.md) | Constraints, same-client transactions, distinct concurrent clients, effective-role RLS and pool reuse, migrations, partition-aware keys, buckets, aggregates, columnstore and retention counterexamples |
 
-After both installs, `npm run verify` runs scanner syntax/tests and the example's strict typecheck/tests.
+Each package owns its lockfile and documented setup. The data fixtures bind only dedicated loopback ports, verify pinned Docker ownership/artifacts and contain destructive tests. Never use production databases. PostgreSQL and TimescaleDB are activated by the actual stack, independently of an ORM: see [PostgreSQL](references/postgresql.md), [TimescaleDB](references/timescaledb.md) and [Drizzle](references/drizzle.md).
 
-## Recorded validation — 2026-11-14
+## Verification and limits
 
-- Scanner: **57 tests**, including positive/negative rule cases, original regressions, CLI failures, malformed syntax/config, scope selection, source immutability and prevention of target-controlled compiler loading.
-- Backend: **11 HTTP/SQLite integration tests** plus strict type checking. Temporary mutations removing tenant scope, actor scope or transactions were detected by the tests; originals were restored and verification repeated.
-- Pinned Hono `src`: **314 files**; Better Auth `packages/better-auth/src`: **392 files**, with no parse diagnostics. Optional test exclusion inspected 189 and 281 files respectively.
-- Source hashes and Git status remained unchanged during the upstream scans. Upstream dependency installation, build and test suites were **not executed**.
+```sh
+npm ci --ignore-scripts
+npm --prefix examples/backend ci --ignore-scripts
+npm --prefix examples/data ci --ignore-scripts
+npm --prefix examples/postgres-backend ci --ignore-scripts
+npm run verify
+npm run verify:data
+```
 
-See [code evidence and counterexamples](references/code-evidence.md). Raw reports, red/green logs, revisions and a reproduction script are in the development workspace's `docs/audits/2026-11-14-typescript/`. These checks do not establish scanner precision/recall, production security, performance improvements, Bun/Deno runtime compatibility or general agent productivity.
+`verify` builds/tests the auditor and checks SQLite. `verify:data` starts the pinned local fixtures, runs actual Node/Bun/Deno data contracts and checks the PostgreSQL backend sequentially; Docker, Bun and Deno must be available. It fails when required executors/checks are unavailable. Fixtures remain running for investigation; coordinate all users before `npm --prefix examples/data run db:down`.
 
-## Contributing
+Recorded local example execution on 2026-11-16 used Node **24.22.1**, Bun **1.3.10**, Deno **2.9.8**, PostgreSQL **17.6** and TimescaleDB **2.22.1**, with Linux database containers on Windows Docker Desktop. The PostgreSQL backend recorded **17 passing tests, zero skips**. See package READMEs for the exact driver/runtime rows, versioned APIs, commands and limitations. No full driver/runtime cross-product is claimed. [Configured CI](.github/workflows/skill-ci.yml) is separate from remotely executed success; cross-OS hosted results are not asserted here. Release acceptance remains pending final aggregate checks and independent review.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for positive/negative regressions, real backend checks, version-matched documentation and the read-only scanner contract. [CI](.github/workflows/skill-ci.yml) runs the scanner and HTTP/SQLite example on Linux, macOS and Windows using the pinned Node baseline.
+The original **57-test v1.2 validation and pinned upstream source scans on 2026-11-14 are historical evidence**, not the current v2 test count. Their limits and counterexamples remain in [code evidence](references/code-evidence.md). Labeled corpus/measurement results belong in [corpus evidence](references/corpus.md); they do not establish production precision, runtime speedups or agent productivity.
 
-## Organization and review
+See [contributing](CONTRIBUTING.md) for meaningful negative tests and evidence requirements. For each investigated lead, record fixed/verified, legitimate/retained, or deferred with an unresolved question. Keep sound code without blanket suppressions or invented abstractions.
 
-[Code organization](references/code-organization.md) preserves dedicated feature-local declarations without empty folders, duplicate schema types or one interface per class. The example follows that convention.
-
-For each scanner lead, record one decision: fixed and verified; legitimate use retained; or investigation deferred with a concrete open question. A documented fallback catch or intentionally disabled test security setting may remain unchanged. Do not add artificial abstractions or blanket suppressions to make signals disappear.
-
-## License
-
-MIT. See [LICENSE](LICENSE). Third-party dependencies retain their respective licenses.
+MIT; see [LICENSE](LICENSE). Third-party dependencies and server artifacts retain their own license terms.

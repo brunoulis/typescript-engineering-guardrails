@@ -1,9 +1,9 @@
 ---
 name: typescript-engineering-guardrails
 license: MIT
-description: Evidence-based anti-slop engineering for TypeScript backends on Node.js, Bun and Deno, including Hono, Better Auth and Drizzle. Use for implementation, security/architecture audit, refactoring, migration, performance and independent review.
+description: Use when implementing, auditing, reviewing, refactoring or migrating TypeScript backends on Node.js, Bun or Deno, including Hono, Better Auth, Drizzle, PostgreSQL and identified TimescaleDB usage.
 metadata:
-  version: "1.2.0"
+  version: "2.0.0"
   family: "engineering-guardrails"
   tags: [typescript, node, bun, deno, hono, better-auth, drizzle, backend, security, architecture, anti-slop]
 ---
@@ -24,13 +24,19 @@ Load references *only as relevant*:
 - `references/anti-slop.md`: AI-generated code failure modes and proof obligations.
 - `references/types-and-contracts.md`: strict TS, runtime validation, API contracts.
 - `references/runtime-node.md`, `runtime-bun.md`, `runtime-deno.md`: runtime-specific verification.
+- For Deno projects, derive checks from the Deno config/tasks/lock; use syntax triage plus native Deno checking when the Program adapter reports unsupported semantics. Test tasks may build native artifacts or need disposable services: inspect prerequisites before execution.
 - `references/hono.md`, `better-auth.md`, `drizzle.md`: specialized libraries.
+- `references/postgresql.md`: real PostgreSQL constraints, transactions, roles, RLS, pools and migrations, independently of the ORM; activate when PostgreSQL is actually used.
+- `references/timescaledb.md`: identified TimescaleDB hypertables, partition-aware uniqueness, buckets, aggregates, columnstore and retention; do not presume the extension is installed.
 - `references/security.md`: OWASP risks, tenants, authn/authz, supply chain.
 - `references/async-performance.md`: queues, aborts, memory, profiling.
 - `references/testing-and-ci.md`: test pyramid, release gates, version-aware commands.
 - `references/refactoring.md`: triage, parity, reversible migrations.
 - `references/audit-protocol.md`: classification, evidence, independent review.
 - `references/scanner.md`: setup, scope, completeness, rule limits and exit codes.
+- `references/quality-score.md`: opt-in dependency graph and separate quality dimensions; scores are evidence summaries, not security grades or test coverage.
+- `references/framework-signals.md`: import-aware framework leads, explicit external integrations and their source-snapshot limits.
+- `references/corpus.md`: labeled corpus, counterexamples and reproducible measurements; no extrapolation to arbitrary projects.
 - `references/code-evidence.md`: executable backend and pinned upstream counterexamples.
 - `references/research.md`: Reddit observations and primary sources; anecdotes are not normative.
 
@@ -60,7 +66,7 @@ Preserve observable contracts or explicitly identify intentional migration chang
 
 **R6 Async/resources:** external I/O has appropriate timeouts/cancellation and retry budgets; background jobs have owners, limits, shutdown behavior and idempotency policy. Avoid unbounded `Promise.all`, unbounded buffering and event-loop blocking.
 
-**R7 Database invariants:** ensure tenant/owner predicates, constraints, atomic transactions where required, migration compatibility, indexes justified by query evidence, pagination, N+1 awareness and safe SQL parameterization. Drizzle type inference does not prove authorization or transaction correctness.
+**R7 Database invariants:** ensure tenant/owner predicates, constraints, atomic transactions where required, migration compatibility, indexes justified by query evidence, pagination, N+1 awareness and safe SQL parameterization. Drizzle type inference does not prove authorization or transaction correctness. For PostgreSQL, keep all transaction operations on the same acquired/reserved client or ORM transaction object; test failures and concurrent clients against the real server. Prove adopted RLS with the effective non-owner/non-superuser role, including USING/WITH CHECK and pool context reuse. For TimescaleDB, partition-inclusive uniqueness and refresh after raw retention require real extension tests; the auditor never connects to a database or infers all dynamic policies.
 
 **R8 Test meaningful paths:** characterize success, invalid input, missing/expired session, forbidden resource, tenant boundary, partial DB failure, cancellation, race/retry, and observable API contract as relevant. Don't add tests merely to increase coverage percentages.
 
@@ -76,21 +82,24 @@ Preserve observable contracts or explicitly identify intentional migration chang
 
 1. **Discover:** identify actual runtime, use cases, trust boundaries, behavior, commands, deployment, existing conventions, changed files and baseline. For library usage, cleanup or upgrades, apply R0a before choosing APIs or changing code. For `audit`, remain read-only.
 2. **Map:** request path → validation → authentication → authorization → application logic → transaction/persistence → response; map job/webhook paths separately. Sketch modules and dependency direction only where needed.
-3. **Inspect:** for audits or substantial changes, run the TS AST scanner as *triage* when available, then compiler/linter/tests/dependency and runtime-specific checks that genuinely exist. Check its scope and diagnostics before interpreting signals. `COMPLETE` means the selected syntax was inspected, not that the application is safe. `INCOMPLETE` and zero inspected files cannot support a clean audit. Verify each candidate in context. Scanner signals **are not established vulnerabilities**.
+3. **Inspect:** for audits or substantial changes, use the bundled auditor as *triage* when available, then compiler/linter/tests/dependency and runtime-specific checks that genuinely exist. Syntax is the default; typed analysis, quality dimensions and external integrations require explicit selection. Check scope and diagnostics before interpreting signals. `COMPLETE` describes the selected analysis, not application safety. Missing typed context, selected files outside the program, failed integrations and zero inspected files cannot support a clean audit. Verify each candidate in context. Auditor signals **are not established vulnerabilities**.
 4. **Design:** compare (A) minimal targeted fix, (B) larger refactor; explicitly assess coupling, cognitive load, testability, compatibility, rollback, operational burden. Extraction only if benefit is established.
 5. **Implement:** smallest coherent reversible diff, preserving contracts unless explicitly requested otherwise.
 6. **Verify:** repeat checks plus role/tenant/security regression; run deployment-runtime smoke tests where compatibility matters. Report exact commands/results, mark unexecuted checks.
 7. **Independent review:** examine design slop, missing invariants, boundary trust, race conditions, hidden global state, dependency proliferation, performance claims and residual risks.
 
-Read-only AST triage (requires a compatible JavaScript TypeScript compiler API; see `references/scanner.md` for explicit setup inside the skill):
+Read-only triage (prepare inside the skill with `npm ci --ignore-scripts` and `npm run build`; Node >=22.13.0 is required by the whole tool dependency set, and local full checks use Node 24.22.1):
 
 ```bash
 node .agents/skills/typescript-engineering-guardrails/scripts/ts-rails-audit.cjs --root . --format text
 node .agents/skills/typescript-engineering-guardrails/scripts/ts-rails-audit.cjs --root . --format json > ts-rails-findings.json
 node .agents/skills/typescript-engineering-guardrails/scripts/ts-rails-audit.cjs --root . --path src --exclude-tests --format json
+node .agents/skills/typescript-engineering-guardrails/scripts/ts-rails-audit.cjs --root . --mode typed --project tsconfig.json --score --format json
 ```
 
-The JSON redirection writes a report: in read-only audits, choose an authorized report destination outside the audited project. If the compiler API cannot be resolved, explain the missing dependency rather than installing or changing the target project's lockfiles. The skill's pinned dependency is independent of the target compiler; report the compiler version actually used. Never replace a project's compiler to run triage.
+The legacy `.cjs` entry is generated from strict TypeScript; do not edit generated JavaScript. See `references/scanner.md` for JSON configuration, baseline/SARIF contracts and exit policies. The JSON redirection writes a report: in read-only audits, choose an authorized report destination outside the audited project. Explicit baseline creation is a separate authorized write; incomplete scans cannot create baselines. A missing compiler is an error, not a reason to install or modify dependencies in the target. The skill's pinned compiler is independent of the target compiler; report the version actually used.
+
+`--integration knip` and `--integration dependency-cruiser` run pinned tools on selected source snapshots, sanitized root dependency metadata and tool-owned temporary configuration, with Knip plugins disabled. They do not run target scripts/configuration or copy target node_modules. Their export/file/dependency/cycle leads describe only that snapshot; unused-dependency candidates still require checking real assets, framework configuration and workspace entry points. Use the explicit type-aware typescript-eslint recipe for promise linting in a trusted project rather than treating the auditor as a replacement linter.
 
 ## 3. Severity / confidence
 
@@ -107,6 +116,6 @@ The scanner emits P2/P3 `HEURISTIC` leads only, with `source`, `test` or `config
 
 For a small correction, explain the change, actual validation and remaining uncertainty briefly. For substantial work provide: detected runtime + versions; scope including skipped paths/parse diagnostics; contract/invariant list; findings `[severity, confidence, file:line, evidence, impact, smallest fix, verification, disposition]`; design alternatives and rejection reasons; files changed; exact checks executed + outputs; before/after metrics or UNMEASURED; residual risks, rollback and independent-review result.
 
-When implementing a tenant-scoped HTTP/SQL flow, consult `examples/backend/README.md`: it links runnable tests for unauthorized access, actor/tenant boundaries, mass assignment, idempotency and real transaction rollback. Its injected authentication port is not a production session implementation. Preserve feature-local `types/`, `interfaces/`, `constants/` and `schemas/`; use only the parts the project needs.
+For HTTP/SQL flows, choose evidence that matches the integration: `examples/backend/README.md` covers fast Hono/SQLite regression with injected identity; `examples/postgres-backend/README.md` covers actual Better Auth sessions, Drizzle, persisted membership, tenant/owner predicates, concurrent idempotency and PostgreSQL task/outbox rollback. `examples/data/README.md` covers dedicated PostgreSQL/TimescaleDB roles, RLS, pools, migrations and actual Node/Bun/Deno driver executions. These packages own independent locks and destructive local fixtures; never reuse production services or credentials. Runtime execution and configured CI are separate claims. Preserve feature-local `types/`, `interfaces/`, `constants/` and `schemas/` only where needed.
 
 Use `templates/audit-report.md`, `templates/project-profile.md` and `templates/refactor-plan.md` as needed. Project's explicit conventions outrank optional stylistic suggestions but never justify proven security/correctness defects.

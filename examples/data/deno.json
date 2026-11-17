@@ -1,0 +1,10 @@
+{
+  "imports": {"postgres": "npm:postgres@3.4.7","hono":"npm:hono@4.13.19"},
+  "lock": false,
+  "nodeModulesDir": "manual",
+  "compilerOptions": {"strict": true, "noUncheckedIndexedAccess": true, "exactOptionalPropertyTypes": true},
+  "tasks": {
+    "check": "deno check src/runtime-suite.ts test/runtime.deno.ts",
+    "test": "deno test --allow-net=127.0.0.1 --allow-read=sql --allow-env=PGAPPNAME,PGMAX_PIPELINE test/runtime.deno.ts"
+  }
+}

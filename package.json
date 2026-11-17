@@ -1,14 +1,28 @@
 {
   "name": "typescript-engineering-guardrails",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "license": "MIT",
   "private": true,
-  "description": "Read-only TypeScript syntax triage and engineering references",
-  "engines": { "node": ">=22" },
-  "scripts": {
-    "test": "node --test scripts/ts-rails-audit.test.cjs scripts/ts-rails-regression.test.cjs scripts/ts-rails-cli.test.cjs",
-    "check": "node --check scripts/ts-rails-audit.cjs",
-    "verify": "npm run check && npm test && npm --prefix examples/backend run check"
+  "description": "Strict TypeScript read-only syntax, semantic and architecture audit with backend evidence",
+  "engines": {
+    "node": ">=22.13.0"
   },
-  "devDependencies": { "typescript": "6.0.3" }
+  "scripts": {
+    "test": "npm run build && node --test dist/tool/test/*.test.js",
+    "check": "tsc --noEmit",
+    "verify": "npm run check && npm test && npm --prefix examples/backend run check",
+    "build": "tsc && node dist/tool/build.js",
+    "verify:data": "npm run build && node dist/tool/verify-data.js",
+    "test:corpus": "npm run build && node --test dist/tool/test/corpus.test.js",
+    "benchmark": "npm run build && node dist/tool/bench/run.js"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "ajv": "8.20.0",
+    "dependency-cruiser": "18.7.2",
+    "eslint": "10.15.0",
+    "knip": "6.45.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.73.0"
+  }
 }

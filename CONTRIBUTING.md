@@ -1,52 +1,61 @@
-# Contributing — prove TypeScript guardrails in context
+# Contributing — evidence before claims
 
-Contributions should improve backend correctness and review quality without imposing ornamental architecture. Preserve feature-local **types/, interfaces/ and constants/**, keep runtime validators in schemas/, and avoid duplicate contracts or empty scaffolding. The scanner is a small CommonJS tool using the TypeScript compiler API; the executable backend example is TypeScript. Do not add a separate language/toolchain without a demonstrated need.
+Preserve feature-local `types/`, `interfaces/` and `constants/`, runtime schemas in `schemas/`, and existing conventions without artificial wrappers. The auditor, tests, build scripts and examples are maintained in strict **TypeScript**. `scripts/ts-rails-audit.cjs` is a generated compatibility entry, not the implementation to edit. No additional maintained language/toolchain is needed.
 
-## Start with the actual library version
+## Establish the actual versions
 
-Read [SKILL.md](SKILL.md), the relevant reference and both package manifests/lockfiles. Apply **R0a** before using, cleaning or updating a library: verify the installed/resolved version and consult its official version-matched documentation.
+Read [SKILL.md](SKILL.md), the relevant reference, affected manifests and lockfiles. Verify installed/resolved metadata before using or changing library APIs. Consult matching official release/tag documentation, declarations and tests; explain version gaps or unverified behavior. Dependency cleanup is not authorization for upgrades.
 
-For updates, compare current/target docs, migration notes, runtime support, peer dependencies and adapters. Explain why the task needs the change, keep unrelated dependencies unchanged and inspect lockfile diffs. Do not upgrade simply to follow a newer code sample.
+The complete tool dependency set declares Node **>=22.13.0**; local full verification uses **24.22.1**, TypeScript **6.0.3**, and each package's independent lock. Examples require their documented Node range. Bun **1.3.10** and Deno **2.9.8** execution evidence is limited to the rows recorded in [the data package](examples/data/README.md).
 
-Full validation uses Node **24.22.1** and the pinned package lockfiles. The scanner declares Node 22+; the backend example requires the documented Node 24 range. The tool's TypeScript **6.0.3** dependency supplies a JavaScript compiler API: a package with a newer version number is not proof that this API remains available.
+## Change the smallest proven boundary
 
-## Proposing a guardrail or detector change
+1. Reproduce the concrete defect or review risk. Observe a meaningful failing test before changing behavior; preserve the original syntax/API/CLI regressions.
+2. Modify `tool/src/**/*.ts` and corresponding `tool/test/*.test.ts`, then regenerate through `npm run build`. Keep `getTS`, `audit`, `scan`, `files`, JSON `schemaVersion: 1`, default syntax behavior and exits 0/1/2 compatible unless an approved change states otherwise.
+3. Include legitimate counterexamples: shadowed symbols, import aliases, bounded tuples, runtime validation, adapters with real work and deliberate auth fixtures. Typed evidence and resolved imports improve context; they do not prove arbitrary interprocedural behavior.
+4. Test failed/incomplete analysis as well as leads: missing dependencies/tsconfig, selected source outside the program, read/parse/budget failures, external tool timeout/errors and disabled or unassessed score dimensions.
+5. Preserve target immutability. Never import target-controlled compiler packages or executable configuration by default; do not execute project scripts, plugins or automatic package-manager installs. Explicit trusted compiler loading executes code and must remain deliberate.
+6. Test baseline scope mismatch, incomplete comparisons, stable identities, unsafe destinations/symlinks and replacement protections; validate SARIF against the pinned official schema fixture. Reports cannot hide diagnostics or label missing findings fixed after incomplete analysis.
+7. Validate authentication and database claims through real HTTP and the relevant server/driver, including actor/tenant denial, mass assignment, concurrent idempotency, actual rollback failures, lifecycle and effective restricted roles. Mocks cannot establish these contracts.
+8. Obtain independent skeptical review for substantive changes, documenting remaining inference limits and exceptions.
 
-1. Reproduce a real failure or documented review risk with minimal input, exact versions and an observable consequence.
-2. Include a valid counterexample: bounded Promise.all, deliberate test auth settings, validated input and justified type escapes must not become verified vulnerabilities.
-3. Decide the evidence level. This scanner has syntax, not type resolution or data flow; its rules emit P2/P3 HEURISTIC leads. A confirmed application finding requires separate contextual proof.
-4. Add positive/negative regressions in `scripts/ts-rails-regression.test.cjs` and CLI cases in `scripts/ts-rails-cli.test.cjs` as appropriate. Keep the original smoke test. Observe the intended failure before fixing it.
-5. Cover syntax recovery/incomplete reports, source/test/config scope, deterministic locations, strings/templates/regex/JSX counterexamples, target immutability and exit behavior when relevant. Zero signals must not hide failed analysis.
-6. If advice concerns tenant isolation, idempotency or transactions, use actual HTTP/SQLite behavior in `examples/backend/test/tasks.test.ts`. Do not substitute mocked method calls for evidence of rollback.
-7. Document missed aliases/types/wrappers, false positives, compatibility and rollback in [the scanner contract](references/scanner.md) or the affected guide. Obtain skeptical independent review for substantive changes.
+For guidance updates, apply the revised instructions to a realistic retrieval/task scenario. Focused command/link review is appropriate for narrow prose corrections; tests that only assert wording do not establish usability.
 
-For guidance-only changes, apply the skill to a realistic task and check its decisions. Small prose corrections need focused document/link review, not tests that merely assert headings or wording.
+## Reproduce local verification
 
-## Local checks
-
-Run from this repository's root (containing `SKILL.md` and `package.json`):
+From the repository root containing SKILL.md:
 
 ```sh
 npm ci --ignore-scripts
+npm run build
 npm --prefix examples/backend ci --ignore-scripts
+npm --prefix examples/data ci --ignore-scripts
+npm --prefix examples/postgres-backend ci --ignore-scripts
 npm run verify
+npm run verify:data
 ```
 
-The aggregate command runs scanner syntax validation and all scanner tests, then strict type checking and real HTTP/SQLite tests for the example. For iteration, `npm test` covers only the scanner; `npm --prefix examples/backend run check` covers the example. Run both before claiming full verification.
+`verify` runs strict root checking, regenerates/builds the auditor, executes its tests, then checks the actual Hono/SQLite example. `verify:data` runs the independent data and PostgreSQL HTTP/auth backend sequentially, including actual Bun/Deno executors and missing-permission negatives. Docker must be running, and the documented executors must be available; required checks are never silently replaced with Node or marked passing when unavailable. See [data setup](examples/data/README.md) and [backend setup](examples/postgres-backend/README.md). These disposable databases contain destructive fixtures and must not be shared with production or overlapping test runs. Coordinate cleanup after all users finish.
 
-Keep dependency installation in this skill/example, not an audited backend. For an intentional dependency change, update and review the appropriate manifest/lockfile, then verify a clean `npm ci`. Do not bypass failing checks with automatic dependency upgrades.
+Useful focused commands:
 
-[CI](.github/workflows/skill-ci.yml) runs full validation with Node 24.22.1 on Linux, macOS and Windows. The configured matrix does not prove Bun/Deno compatibility or hosted success until it actually runs.
+| Command | Scope |
+| --- | --- |
+| `npm run check` | Root strict typecheck without emit |
+| `npm test` | Root build and compiled TypeScript tests, including preserved compatibility tests and real pinned external integrations |
+| `npm run test:corpus` | Labeled corpus evidence; see its limitations |
+| `npm run benchmark` | Repeatable auditor workload measurement, not an application performance benchmark |
+| `npm --prefix examples/backend run check` | Hono/SQLite typecheck and integration tests |
+| `npm --prefix examples/postgres-backend run check` | Explicitly configured real PostgreSQL backend typecheck and tests |
 
-## Safety and review evidence
+Independent examples have their own installations and locks. Do not modify an audited project's dependency graph to run the skill. Intentional dependency changes require reviewed lock diffs and a clean frozen install.
 
-- The scanner must never load a compiler or other executable module from the audited target by default. Preserve explicit trusted-compiler overrides and their validation.
-- Keep source auditing read-only. Shell redirection or explicit report output writes only to an authorized destination.
-- Keep parse/read failures, empty scope, skipped paths and unsupported syntax visible; `COMPLETE` describes selected syntax coverage, not application security.
-- Preserve JSON/exit contracts or document their migration. Do not silently reclassify test fixtures as production vulnerabilities.
-- Do not remove tests, change expected results blindly, add blanket suppressions or weaken strict typechecking to force green.
-- Use synthetic fixtures or pinned, attributed upstream sources. Keep node_modules, credentials, reports containing private source and downloaded corpora out of contributions.
+## Review the limits with the result
 
-A useful PR includes the problem and minimal fix, positive/negative tests, a legitimate-use counterexample, versions/documentation consulted, commands/results including skips, limitations, compatibility/rollback and reviewer outcome. Changes to authentication examples must keep test adapters visibly separate from production authentication.
+The Knip/dependency-cruiser integrations inspect selected source plus sanitized root dependency metadata with tool-owned configuration and disabled Knip plugins. Export/file/dependency/cycle candidates cannot establish real application entry points, asset reachability, framework configuration or full-project unused dependencies. Retain these limits in reports. The explicit typescript-eslint promise recipe is separate trusted project tooling, not an executable configuration hook for read-only auditing.
 
-Workflow setup references: [Node setup action](https://github.com/actions/setup-node) and [checkout action](https://github.com/actions/checkout). External actions are pinned by commit; runtime/action updates require the same reviewed version and migration evidence.
+`COMPLETE` describes the selected analysis. All auditor leads remain P2/P3 HEURISTIC. Classify each investigated lead as fixed/verified, legitimate/retained, or deferred with a concrete open question. Quality grades are separate evidence dimensions; no combined repository ranking or behavioral test coverage is inferred.
+
+Record commands, exits, actual runtime/server/driver versions, skips/failures, security and compatibility implications, rollback/recovery constraints and reviewer outcome. Never suppress a failing check, weaken strict settings, or change assertions merely to make a suite green. No production safety, performance improvement or general precision/recall claim follows from synthetic tests or a small pinned corpus.
+
+[CI](.github/workflows/skill-ci.yml) describes intended hosted checks; writing or locally inspecting it does not establish remote Linux/macOS/Windows success. Distinguish executed local evidence, configured CI and pending acceptance. Keep public fixture credentials clearly identified; exclude real secrets, node_modules, private reports, downloaded corpora and build caches from contributions.

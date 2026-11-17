@@ -1,12 +1,14 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const ts = require('typescript');
-const { scan, audit, getTS } = require('./ts-rails-audit.cjs');
+import type { TestContext } from 'node:test';
+import type { Finding } from '../src/types/report.js';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import ts from 'typescript';
+import { scan, audit, getTS } from '../src/index.js';
 
-function fixture(t, entries) {
+function fixture(t: TestContext, entries: Record<string, string>) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ts-rails-test-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   for (const [name, content] of Object.entries(entries)) {
@@ -19,7 +21,7 @@ function fixture(t, entries) {
 
 const tick = String.fromCharCode(96);
 const interpolation = '$' + '{';
-const cases = [
+const cases: [string, string, string, number][] = [
   ['any is a lead', 'let value: any;', 'EXPLICIT_ANY', 1],
   ['unknown is not any', 'let value: unknown;', 'EXPLICIT_ANY', 0],
   ['any in strings/comments is ignored', 'const s = "any"; // any\n', 'EXPLICIT_ANY', 0],
@@ -56,27 +58,28 @@ const cases = [
 ];
 
 for (const [name, source, code, count] of cases) {
-  test(name, (t) => {
+  test(name, (t: TestContext) => {
     const root = fixture(t, { 'src/sample.ts': source });
-    assert.equal(scan(root, ts).filter((f) => f.code === code).length, count);
+    assert.equal(scan(root, ts).filter((f: Finding) => f.code === code).length, count);
   });
 }
 
-test('JSX text is not comment trivia', (t) => {
+test('JSX text is not comment trivia', (t: TestContext) => {
   const root = fixture(t, { 'view.tsx': 'const view = <div>// @ts-ignore</div>;' });
-  assert.equal(scan(root, ts).filter((f) => f.code === 'TS_SUPPRESSION').length, 0);
+  assert.equal(scan(root, ts).filter((f: Finding) => f.code === 'TS_SUPPRESSION').length, 0);
 });
 
-test('heuristics never produce P0 or P1, including test-only auth config', (t) => {
+test('heuristics never produce P0 or P1, including test-only auth config', (t: TestContext) => {
   const root = fixture(t, { 'auth.test.ts': 'const testOptions = { disableCSRFCheck: true };' });
   const findings = scan(root, ts);
   assert.equal(findings.length, 1);
+  assert.ok(findings[0]);
   assert.equal(findings[0].confidence, 'HEURISTIC');
   assert.equal(findings[0].severity, 'P2');
   assert.equal(findings[0].scope, 'test');
 });
 
-test('Deno tasks: actual flags, JSONC comments, descriptions and script arguments', (t) => {
+test('Deno tasks: actual flags, JSONC comments, descriptions and script arguments', (t: TestContext) => {
   const root = fixture(t, {
     'app.ts': 'export {};',
     'deno.jsonc': JSON.stringify({
@@ -93,33 +96,33 @@ test('Deno tasks: actual flags, JSONC comments, descriptions and script argument
       description: '--allow-all is documented here',
     }, null, 2) + '\n// deno run --allow-all app.ts\n',
   });
-  assert.equal(scan(root, ts).filter((f) => f.code === 'BROAD_DENO_PERMISSIONS').length, 3);
+  assert.equal(scan(root, ts).filter((f: Finding) => f.code === 'BROAD_DENO_PERMISSIONS').length, 3);
 });
 
-test('invalid Deno config marks report incomplete', (t) => {
+test('invalid Deno config marks report incomplete', (t: TestContext) => {
   const root = fixture(t, { 'app.ts': 'export {};', 'deno.json': '{"tasks":' });
   const report = audit(root, ts);
   assert.equal(report.status, 'INCOMPLETE');
-  assert.ok(report.diagnostics.some((d) => d.code === 'CONFIG_PARSE_ERROR'));
+  assert.ok(report.diagnostics.some((d: { code: string; file: string; line: number }) => d.code === 'CONFIG_PARSE_ERROR'));
 });
 
-test('syntax errors are surfaced, not silently reported clean', (t) => {
+test('syntax errors are surfaced, not silently reported clean', (t: TestContext) => {
   const root = fixture(t, { 'broken.ts': 'const x: = ;', 'good.ts': 'export {};' });
   const report = audit(root, ts);
   assert.equal(report.status, 'INCOMPLETE');
   assert.equal(report.filesDiscovered, 2);
   assert.equal(report.filesInspected, 1);
-  assert.ok(report.diagnostics.some((d) => d.code === 'SOURCE_PARSE_ERROR' && d.file === 'broken.ts' && d.line === 1));
+  assert.ok(report.diagnostics.some((d: { code: string; file: string; line: number }) => d.code === 'SOURCE_PARSE_ERROR' && d.file === 'broken.ts' && d.line === 1));
   assert.throws(() => scan(root, ts), /incomplete/i);
 });
 
-test('empty source scope is incomplete', (t) => {
+test('empty source scope is incomplete', (t: TestContext) => {
   const report = audit(fixture(t, { 'README.md': 'Only docs' }), ts);
   assert.equal(report.status, 'INCOMPLETE');
-  assert.ok(report.diagnostics.some((d) => d.code === 'NO_SOURCE_FILES'));
+  assert.ok(report.diagnostics.some((d: { code: string; file: string; line: number }) => d.code === 'NO_SOURCE_FILES'));
 });
 
-test('supported source extensions and explicit excluded scopes', (t) => {
+test('supported source extensions and explicit excluded scopes', (t: TestContext) => {
   const root = fixture(t, {
     'src/index.ts': 'let a: any;',
     'src/module.mts': 'let a: any;',
@@ -136,35 +139,35 @@ test('supported source extensions and explicit excluded scopes', (t) => {
   assert.equal(report.filesInspected, 5);
   assert.equal(report.testsExcluded, 2);
   assert.equal(report.results.length, 5);
-  assert.ok(report.skipped.some((s) => s.path === 'node_modules'));
+  assert.ok(report.skipped.some((s: { path: string }) => s.path === 'node_modules'));
 });
 
-test('path selection is scoped, deduplicated and rejects escapes', (t) => {
+test('path selection is scoped, deduplicated and rejects escapes', (t: TestContext) => {
   const root = fixture(t, { 'src/a.ts': 'let a: any;', 'other/b.ts': 'let b: any;' });
   assert.equal(audit(root, ts, { paths: ['src', 'src/a.ts'] }).filesInspected, 1);
   assert.throws(() => audit(root, ts, { paths: ['..'] }), /outside|escape/i);
   assert.throws(() => audit(root, ts, { paths: ['missing'] }), /not exist|ENOENT/i);
 });
 
-test('oversized source is reported incomplete', (t) => {
+test('oversized source is reported incomplete', (t: TestContext) => {
   const root = fixture(t, { 'big.ts': 'export const x = 123;' });
   const report = audit(root, ts, { maxFileBytes: 8 });
   assert.equal(report.status, 'INCOMPLETE');
-  assert.ok(report.diagnostics.some((d) => d.code === 'FILE_TOO_LARGE'));
+  assert.ok(report.diagnostics.some((d: { code: string; file: string; line: number }) => d.code === 'FILE_TOO_LARGE'));
 });
 
-test('results have stable locations and the audit never writes target files', (t) => {
+test('results have stable locations and the audit never writes target files', (t: TestContext) => {
   const root = fixture(t, { 'src/z.ts': '\nlet b: any;\n', 'src/a.ts': 'let a: any;\n' });
   const before = fs.readFileSync(path.join(root, 'src/z.ts'));
   const first = audit(root, ts);
   assert.deepEqual(first, audit(root, ts));
-  assert.deepEqual(first.results.map((f) => [f.file, f.line]), [['src/a.ts', 1], ['src/z.ts', 2]]);
+  assert.deepEqual(first.results.map((f: Finding) => [f.file, f.line]), [['src/a.ts', 1], ['src/z.ts', 2]]);
   assert.deepEqual(fs.readFileSync(path.join(root, 'src/z.ts')), before);
   assert.deepEqual(fs.readdirSync(root), ['src']);
   assert.equal(first.compilerVersion, ts.version);
 });
 
-test('explicit compiler API override rejects incompatible packages', (t) => {
+test('explicit compiler API override rejects incompatible packages', (t: TestContext) => {
   const root = fixture(t, { 'compiler.cjs': 'module.exports = {};' });
   const before = process.env.TS_RAILS_TYPESCRIPT_PATH;
   try {
@@ -176,7 +179,7 @@ test('explicit compiler API override rejects incompatible packages', (t) => {
   }
 });
 
-test('default resolution never executes the target compiler package', (t) => {
+test('default resolution never executes the target compiler package', (t: TestContext) => {
   const root = fixture(t, { 'app.ts': 'export {};' });
   const moduleDir = path.join(root, 'node_modules/typescript');
   fs.mkdirSync(moduleDir, { recursive: true });

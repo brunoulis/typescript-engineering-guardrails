@@ -44,15 +44,16 @@ A successful file copy or CLI listing proves placement, not that a running host 
 
 ## Optional tool preparation
 
-The instructions need no Node runtime. The optional scanner requires Node 22+ and the tool's own locked TypeScript dependency. Run inside the installed skill folder, not the audited backend:
+The instructions need no Node runtime. Version 2.0.0 remains a local release candidate until aggregate verification and independent review are recorded. The optional auditor and its complete development-tool dependency set require Node >=22.13.0 and the skill's own locked TypeScript 6.0.3 dependency. Local full validation uses Node 24.22.1. The maintained tool source is strict TypeScript; the legacy CommonJS entry is generated and must be built before first invocation after a clean installation. Run inside the installed skill folder, not the audited backend:
 
 ```sh
 npm ci --ignore-scripts
-npm test
+npm run build
 npm run check
+npm test
 ```
 
-The executable backend example/full verification uses Node 24.22.1 and its own install; see CONTRIBUTING.md. Installing this skill does not change a Bun/Deno application's runtime or dependencies.
+The independent SQLite, PostgreSQL backend and PostgreSQL/TimescaleDB data packages each require their own locked install. See CONTRIBUTING.md for `npm run verify` and the separate `npm run verify:data`, which additionally requires Docker and the documented real Bun/Deno executors. Installing those prerequisites is distinct from installing the skill. Installing this skill does not change a Bun/Deno application's runtime or dependencies.
 
 Use the project's own versions for its checks. Installing the skill does not authorize dependency upgrades, builds of an arbitrary target, source cleanup or adding CI to that target. Full contributor checks are in [CONTRIBUTING.md](CONTRIBUTING.md).
 

@@ -8,9 +8,32 @@ Its tests verify HTTP statuses and stored state for invalid input, absent/invali
 
 When adapting it: preserve the existing authentication and persistence integrations, put ownership predicates in the actual operation, keep external side effects outside the transaction, and write tests against the project's real driver. Do not copy its fresh-schema initialization as a production migration system.
 
-## Pinned upstream source inspection
+## Real PostgreSQL authentication backend
 
-Validation on 2026-11-14 inspected these immutable snapshots:
+The independent [PostgreSQL backend](../examples/postgres-backend/README.md) uses Hono 4.13.19, Better Auth/adapter 1.7.25, Drizzle 0.45.4 and postgres.js 4.1.1. Installed metadata/lock and tagged source/declarations were compared before implementation. Node 24.22.1 against PostgreSQL 17.6 recorded **17 passing tests, zero skips** on 2026-11-16.
+
+These tests use a real HTTP listener and database: password signup/login/session cookies, missing/expired/revoked sessions, persisted memberships, owner/tenant predicates, immutable fields, origin rejection and bounded inputs. An advisory-lock INSERT barrier holds at least two distinct PostgreSQL backends before releasing eight same-key requests; one task and one outbox event commit. A real outbox CHECK failure returns 500, leaves no task/idempotency claim, then permits a successful retry after removal. The app uses an effective restricted login; fixture DDL uses the separate migration connection. Cancellation, listener closure and ended-pool behavior are exercised.
+
+This is a local fixture, not production deployment evidence. It does not claim RLS, outbox delivery, cross-runtime auth compatibility or distributed exactly-once behavior. Its membership FK prevents deleting grants referenced by existing tasks; an administrative suspension/archival model is a separate extension.
+
+## PostgreSQL and TimescaleDB data matrix
+
+The [data package](../examples/data/README.md) records actual Node 24.22.1, Bun 1.3.10 and Deno 2.9.8 execution against pinned Linux/amd64 containers on Windows Docker Desktop, with PostgreSQL 17.6 and TimescaleDB 2.22.1. It owns a separate lock and postgres.js **3.4.7**, rather than assuming the backend package's driver version.
+
+- Node + pg exercises constraints, same-acquired-client rollback, distinct concurrent clients, atomic updates, timeout/recovery, migration compatibility, EXPLAIN and effective-role RLS, including transaction-local tenant context reuse after rollback/commit.
+- Node + pg exercises actual Timescale partition-inclusive uniqueness, bucket boundaries/DST, late historical arrivals and refresh, real-time tails, columnstore conversion and fidelity, policy configuration, safe retention and the destructive refresh-after-deletion counterexample.
+- Node + Drizzle exercises bounded parameterized hypertable operations and aggregate consumption. Aggregate isolation uses a restricted fixed-tenant security-barrier view; it does not assume continuous aggregates inherit raw-table RLS.
+- Actual Bun + postgres.js and Deno + npm postgres.js execute the shared parameterized batch/rollback/error/timeout and Timescale reference contracts. Deno checks types and demonstrates failure without the required environment or network permission.
+
+A deliberate transaction mutation routing through the pool instead of its acquired client caused a partial row to survive and the rollback assertion to fail; restoration returned tests to green. No other driver/runtime combination, production plan/index choice, scheduler reliability or throughput is inferred. See the package README for artifact digests, commands and exact scope; never run destructive fixtures against production.
+
+## Auditor evidence
+
+Maintained auditor sources/tests are strict TypeScript. The generated CommonJS entry preserves the syntax/API compatibility contract, while semantic, quality, baseline/SARIF and controlled integration tests add distinct evidence. See [scanner](scanner.md), [quality dimensions](quality-score.md), [framework integrations](framework-signals.md) and [labeled corpus/measurements](corpus.md). Knip/dependency-cruiser operate on selected-source snapshots and sanitized dependency metadata with tool-owned configuration; dependency candidates are not full-project removal proof. The type-aware typescript-eslint recipe has real positive/negative lint execution. Current aggregate acceptance and hosted CI must be reported from actual runs, independently of historical counts.
+
+## Historical v1.2 pinned upstream source inspection
+
+Historical validation on 2026-11-14 inspected these immutable snapshots with the v1.2 scanner; these are not v2 corpus metrics or the current test count:
 
 | Project | Revision | Scope | Files including tests | Files excluding tests |
 |---|---|---|---|---|

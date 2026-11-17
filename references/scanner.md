@@ -1,54 +1,122 @@
-# Syntax triage: setup, contract and limits
+# Auditor: setup, contracts and limits
 
-Use the scanner to find review locations. It does not resolve symbols, follow data flow, certify authorization/SQL safety, apply fixes or enforce folder conventions. Existing compiler/linter/security tooling remains authoritative within its own scope.
+The maintained auditor and tests are strict TypeScript. The legacy CommonJS executable is generated. Use findings to choose review locations; they do not establish vulnerabilities, runtime validation, authorization or production readiness.
 
-## Prepare and run
+## Prepare
 
-The tool runs on Node 22+; recorded validation used Node 24.22.1. In the **skill directory**, intentionally run `npm ci --ignore-scripts`. Its lockfile pins the JavaScript compiler API at TypeScript 6.0.3. A package named TypeScript is not sufficient if it does not expose that API.
+Inside the skill directory, intentionally run:
 
-The default compiler is resolved from the installed skill, not from the audited root. To deliberately use a different trusted compiler, set `TS_RAILS_TYPESCRIPT_PATH` to its absolute module path. An invalid explicit override fails. Loading a package executes its code: only choose a trusted compiler. Setup never requires installing dependencies in the audited project.
+```sh
+npm ci --ignore-scripts
+npm run build
+npm run check
+npm test
+```
 
-Run with an absolute path to the script when outside the skill directory:
+The complete pinned tool dependency set requires Node >=22.13.0; full recorded execution uses24.22.1. Compilation is explicit; audited projects need no dependency installation or compiler replacement. Instructions alone need no Node installation. Do not copy stale build outputs between revisions: build the installed sources.
 
-    node scripts/ts-rails-audit.cjs --root TARGET --format json
-    node scripts/ts-rails-audit.cjs --root TARGET --path src --path workers --exclude-tests
+TypeScript6.0.3 is loaded from this skill's absolute node_modules path. `TS_RAILS_TYPESCRIPT_PATH` deliberately overrides it with an absolute trusted API module. That executes the selected module; never choose target-controlled code. Invalid overrides fail. No ancestor/target package lookup selects the compiler implicitly.
 
-Paths are repeatable files or directories within the root, not glob expressions. Missing/outside paths fail. Root `deno.json` and `deno.jsonc` are inspected even with `--path`; nested workspace configs require a separate run with that workspace as root. Root is resolved to a real directory; discovered symlinks are skipped and recorded. Source extensions: `.ts`, `.tsx`, `.mts`, `.cts`; declaration files are excluded.
+## Modes and selected scope
 
-Dependency/build directories (`node_modules`, `.git`, `dist`, `build`, `coverage`, `.next`, `vendor`, `.turbo`, `.output`, `.nuxt`, `.svelte-kit`) are excluded during traversal. Other generated code is not automatically recognized: select actual source paths. Without `--exclude-tests`, test signals remain visible with `scope: test`. Test classification uses `test/`, `tests/`, `__tests__/`, fixture directories and `.test.*`/`.spec.*` names; it is a convention, not proof of reachability.
+```sh
+node scripts/ts-rails-audit.cjs --root TARGET --format json
+node scripts/ts-rails-audit.cjs --root TARGET --path src --exclude-tests
+node scripts/ts-rails-audit.cjs --root TARGET --mode typed --project tsconfig.json --score
+```
 
-## Reports and exit codes
+`syntax` is the default, with parser-only analysis and the original eight rules. Import-aware framework leads also run when recognized imports are present; see [framework signals](framework-signals.md). `.ts`, `.tsx`, `.mts`, `.cts` are inspected; declarations are context only. Repeat --path with files/directories within the root, not globs. Missing/outside paths fail. Root deno.json/deno.jsonc are inspected even with --path. Nested Deno workspace configs require explicit runs. Root realpath is canonical; discovered symlinks are skipped and listed; selected ancestors that resolve outside the root fail.
 
-JSON `schemaVersion: 1` retains `root`, `filesInspected`, `disclaimer`, `results`; it adds `compilerVersion`, `status`, `filesDiscovered`, `configsInspected`, `testsExcluded`, `skipped`, `diagnostics`. Locations are one-based and paths are root-relative. Results are sorted deterministically. There are no timestamp or performance claims in the report.
+Excluded traversal directories: node_modules, .git, dist, build, coverage, .next, vendor, .turbo, .output, .nuxt, .svelte-kit. Other generated code needs explicit scope. Tests/fixtures and .test/.spec files retain `scope:test` unless excluded. This is naming classification, not reachability proof. A deliberate security toggle in a test is not a deployed vulnerability.
+
+`typed` requires the explicit --project config or root tsconfig.json. It reads JSON configs/references, creates real Programs and obtains TypeCheckers. It never builds referenced projects or executes compiler plugins. Missing declarations/references/dependencies and all compiler diagnostics are visible and make analysis INCOMPLETE. No silent fallback to syntax. Selected files absent from resolved Programs are OUTSIDE_PROJECT, not silently clean. Resolve dependencies in the target only as a separately authorized project task.
+
+Colocated Deno `_test.ts`/`_test.tsx`/`_test.mts`/`_test.cts` and basename `test.ts` variants are classified as tests alongside `.test`/`.spec`; similarly named source such as `test_driver.ts` or `latest_test_helper.ts` remains source. Classification remains a convention. `--exclude-tests` records the excluded paths. With excluded tests or an explicitly narrowed path, the tests score is unevaluated and carries no missing-test evidence.
+
+The Program adapter does **not** resolve Deno import maps/JSR/runtime libraries. If no tsconfig exists but a Deno config does, or --project selects deno.json/deno.jsonc, it emits `DENO_SEMANTICS_UNSUPPORTED` and inspects zero source files semantically. When no Program can be created, the root diagnostic is retained without repeating OUTSIDE_PROJECT for every selected file. This is a tool capability limitation, not proof of a project defect. See [Deno verification](runtime-deno.md) for native checks that preserve the audited target.
+
+Programs may read supporting source/declarations outside --path but within the audited root, plus the explicitly trusted compiler's library directory. Out-of-root symlink reads are rejected; workspace packages outside root require choosing an appropriate common root. `semantic.projects`, contextFiles and externalReads report context. Limits: source2MiB by default, declarations16MiB, total semantic128MiB and20000 reads. Library declarations such as lib.dom exceed the source-file budget. These are resource guards, not an OS sandbox or a general termination guarantee for every input.
+
+Typed JSON detection uses actual default-library JSON.parse/Body.json signatures and the verified Node/Undici BodyMixin.json declaration, including callable aliases; serializers and shadowed globals are excluded. It does not prove custom validation or follow arbitrary data flow. Typed Promise.all detects builtin signatures and selected constant bind aliases; small finite tuples (default limit16) can discharge a map lead. Arrays, large/rest tuples and other unproved bounds retain leads. Custom concurrency helpers and arbitrary aliases are not solved.
+
+Typed mode emits a resolved import/reexport graph; --score or configured boundaries also enable it. Type-only edges are distinguished, and runtime cycle leads contain an actual closed cycle. See [quality dimensions](quality-score.md) for normalization, complexity, delegation and test-evidence limits. File length and folder names alone establish no defect.
+
+## Configuration
+
+Explicit `--config FILE` reads a version1 JSON object (max1MiB); no automatic JS configuration loading. Unknown options/rules, invalid booleans, nonpositive thresholds and invalid integrations fail. CLI options override config; omitted values use defaults. API options use the same validation.
+
+```json
+{
+  "version": 1,
+  "mode": "typed",
+  "project": "tsconfig.json",
+  "paths": ["src"],
+  "excludeTests": true,
+  "score": true,
+  "concurrencyLimit": 16,
+  "complexityLimit": 15,
+  "cloneMinTokens": 60,
+  "rules": { "NON_NULL_ASSERTION": false },
+  "boundaries": [{ "from": "src/domain", "disallow": ["hono", "src/http"] }]
+}
+```
+
+Rules are review policies, not security exceptions. Disabled rules do not convert an incomplete scan into a complete one. Do not require comments or suppressions per valid occurrence.
+
+## Rules
+
+All results are P2/P3 HEURISTIC, never automatic P0/P1.
+
+| Original rule | Recognizes and limits |
+| --- | --- |
+| EXPLICIT_ANY | Explicit any AST keyword; interop/generics may be valid; implicit any belongs to compiler diagnostics |
+| NON_NULL_ASSERTION | Postfix assertion; review the established invariant |
+| EMPTY_CATCH | No statements, including comment-only catches; deliberate probes/fallbacks can be valid |
+| UNVALIDATED_JSON_CAST | Direct raw JSON assertions including await/conditional/logical forms; syntax cannot distinguish every serializer, typed refines builtin signatures |
+| AUTH_SECURITY_DISABLED | Literal true at two option names; syntax name alone proves no auth reachability |
+| POTENTIALLY_UNBOUNDED_CONCURRENCY | Promise.all map; typed discharges only statically small finite tuples, not arbitrary bounds |
+| TS_SUPPRESSION | Directive-shaped @ts-ignore/@ts-nocheck at parser comment boundaries; not a full simulation of compiler directive placement |
+| BROAD_DENO_PERMISSIONS | Direct Deno task run/test/serve/bench -A/--allow-all before script/--; root configs only, no shell expansion |
+
+Deno supports separate --config/-c/--import-map values. Wrappers, compound flags, task indirection, variables and unrecognized options may be missed. Inspect the actual deployment permissions.
+
+Additional rules and counterexamples are documented in [framework signals](framework-signals.md), [quality](quality-score.md) and [external integration](#external-tools). PostgreSQL and TimescaleDB have independent [PostgreSQL](postgresql.md)/[TimescaleDB](timescaledb.md) guides and real executable tests. The auditor does not infer transactions, RLS, schema invariants, indexes, retention or aggregate safety from arbitrary dynamic SQL. It never connects to a database or executes migrations/EXPLAIN.
+
+## Baselines and SARIF
+
+```sh
+node scripts/ts-rails-audit.cjs --root TARGET --write-baseline /reports/rails-baseline.json
+node scripts/ts-rails-audit.cjs --root TARGET --baseline /reports/rails-baseline.json --fail-on-new
+node scripts/ts-rails-audit.cjs --root TARGET --format sarif
+```
+
+Baselines are versioned, validated JSON (max8MiB), matched to normalized selected paths, mode/project, rules and analysis options. Fingerprints use rule, relative file, normalized AST context and occurrence; unrelated line insertion remains known. Identical occurrences can become ambiguous when inserted/reordered. Context changes can intentionally make a lead new. No global security identity is claimed.
+
+Baseline comparison reports added/known/absent and comparable. Incomplete scans never label absent findings fixed; mismatched policy/scope fails. Known leads remain visible. --fail-on-new requires --baseline and returns2 only for new leads after valid comparison. Errors/incomplete always return1.
+
+--write-baseline is explicit report output. It requires a complete scan and dedicated .json destination, rejects source/reserved configuration paths and symlinks, creates exclusively by default, and requires --replace-baseline to replace a valid existing baseline. Parent directories must already exist. Comparison and overwrite of the same baseline in one invocation are rejected. A baseline write is a modification: for read-only audits place it outside the target in an authorized report directory.
+
+SARIF2.1.0 includes relative encoded locations, heuristic rule metadata, fingerprints and execution diagnostics. Structural validation against the official schema is exercised by tests; URI encoding has explicit regressions. INCOMPLETE yields executionSuccessful:false and nonzero exit, not a clean upload. CI Code Scanning upload is not performed automatically.
+
+## External tools
+
+`--integration knip` and `--integration dependency-cruiser` explicitly launch skill-pinned executables in separate processes with controlled temporary snapshots, 30-second timeout and8MiB output limit. NODE_OPTIONS/NODE_PATH are removed in the child. This is process separation, not an OS security sandbox.
+
+Only successfully inspected selected TypeScript source text, sanitized root dependency inventories and tool-owned JSON configs are copied. No project scripts, executable configuration, node_modules, exports/workspaces or custom compiler plugins are copied. All installed Knip plugins are disabled. Temporary files are outside the target and removed afterward. A root package manifest contributes to configsInspected only when this integration reads it. Symlinked/oversized manifest input fails visibly.
+
+Knip6.45.1 contributes possible unused files/exports/dependencies; dependency-cruiser18.7.2 contributes cycle leads. Fixed snapshot entry preference is src/index.ts, index.ts, src/main.ts, main.ts, then first selected path. Missing assets, non-TS entrypoints, config-only dependencies and workspace roots can make legitimate code appear unused. This is deliberately bounded source-snapshot triage, not the tools' full native project analysis; inspect context before removal. Module aliases/assets/custom resolvers are not reproduced. A requested tool that is missing, fails, times out or returns invalid output makes the scan INCOMPLETE. No automatic installs, fixes or target configuration execution occur.
+
+For promise linting use the opt-in [typed ESLint recipe](../tool/src/recipes/typed-eslint.ts) in a trusted project. Its pinned typescript-eslint8.73.0 / ESLint10.15.0 rules are tested on real positive/negative typed code. The auditor does not invoke a target linter, test or build automatically.
+
+## API and exits
+
+`getTS(root?)`, `files(root, options?)`, `audit(root, ts, options?)` and `scan(root, ts, options?)` remain exported by scripts/ts-rails-audit.cjs after build. audit returns a report; scan retains Finding[] and throws on INCOMPLETE. Original options paths/excludeTests/maxFileBytes remain supported. JSON schemaVersion1 and original fields are retained; typed/graph/score/baseline/integration sections are additive and graph/score versioned independently. Default syntax output omits optional sections unless requested.
 
 | Result | Exit | Meaning |
-|---|---|---|
-| `COMPLETE` | 0 | Selected source syntax was inspected; findings may exist |
-| `INCOMPLETE` | 1 | Invalid syntax/config, failed file inspection, file over 2 MiB, or zero selected source files |
-| Usage/root/compiler/discovery error | 1 | Diagnostic on stderr; no successful report |
-| `COMPLETE` with signals and `--fail-on-signals` | 2 | Explicit signal gate triggered, not a confirmed security failure |
+| --- | --- | --- |
+| COMPLETE | 0 | Selected checks completed; leads may exist |
+| INCOMPLETE or usage/config/compiler error | 1 | Inspect diagnostics; no clean-audit inference |
+| COMPLETE + --fail-on-signals and leads | 2 | Explicit signal policy, not confirmed insecurity |
+| COMPLETE + --fail-on-new and new leads | 2 | Explicit regression policy |
 
-Incomplete reports retain diagnostics and findings from successfully inspected files. Incomplete takes precedence over the signal gate. Files with parse errors are not treated as analyzed. `COMPLETE` is relative to the selected scope and listed exclusions, never equivalent to passing `tsc`, complete repository coverage, runtime validation or security certification.
-
-For programmatic callers, `audit(root, ts, options)` returns the report; `scan(root, ts, options)` retains the original findings-array shape but throws when analysis is incomplete. Options: `paths`, `excludeTests`, `maxFileBytes` (positive integer, default 2 MiB). `files(root, options)` returns selected source paths.
-
-## Rules and counterexamples
-
-All results are `HEURISTIC`. These are priorities for investigation; none automatically becomes P0/P1.
-
-| Rule | Priority | Recognizes | Review before changing |
-|---|---|---|---|
-| `EXPLICIT_ANY` | P2 | Explicit AST `any` keyword | Framework generics and interop may justify it; implicit `any` is the compiler's job |
-| `NON_NULL_ASSERTION` | P3 | Postfix non-null assertion | A previously established invariant may justify it |
-| `EMPTY_CATCH` | P2 | Catch block with no statements | A fallback or deliberate probe may be correct; comment-only blocks still need inspection |
-| `UNVALIDATED_JSON_CAST` | P2 | Assertions on raw `JSON.parse`/`.json()` calls, awaited/parenthesized forms, conditional and logical branches | No API/type resolution; a method named `json` can serialize rather than parse. Does not prove validation is absent elsewhere |
-| `AUTH_SECURITY_DISABLED` | P2 | Literal true assigned to the two security option names, including literal computed keys | Test fixtures/unrelated objects are not deployed auth configurations |
-| `POTENTIALLY_UNBOUNDED_CONCURRENCY` | P2 | `Promise.all` with a direct mapped argument | Fixed arrays, prior bounds or a limiter inside the callback can make the operation safe |
-| `TS_SUPPRESSION` | P2 | Directive-shaped `@ts-ignore`/`@ts-nocheck` comments at parser-established boundaries | Compatibility tests/runtime globals may justify them; this is not an exact simulation of compiler directive placement |
-| `BROAD_DENO_PERMISSIONS` | P2 | Direct `deno run/test/serve/bench` task commands with `-A`/`--allow-all` before script/`--` | Tooling may need broad access; only root JSON/JSONC task strings or task `command` properties are examined |
-
-JSON detection does not descend through validator calls or arbitrary object construction; wrapped calls, aliases, variables, custom validators and object spreads require manual review. Absence of a signal is not proof of validation. A bounded map is deliberately retained as a lead because syntax cannot establish its bound.
-
-Deno detection does not evaluate shell commands: wrappers, chained commands, variables, combined short flags, task references and unrecognized options with separate values may be missed. Separate values for `--config`/`-c` and `--import-map` are supported. It ignores prose/comments and script arguments. Inspect the real deployment command and permission configuration separately.
-
-Record each investigated signal once as fixed/verified, legitimate/retained or deferred with an open question. Never require blanket suppression, a comment per occurrence or removal of sound code to make the scanner quiet.
+Ordering is deterministic and locations are one-based/root-relative. Original parser checks preserve successful-file findings when others fail. No-source scope is INCOMPLETE. Existing declaration/build/test exclusions remain visible. Use [corpus](corpus.md), [measurement artifact](../docs/verification/benchmark-v2.json) and [verification record](../docs/verification/2026-11-16-v2.md) for actual evidence, not generalized accuracy/performance claims.
