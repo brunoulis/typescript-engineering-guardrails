@@ -112,7 +112,7 @@ test('missing Deno executable is reported as INCOMPLETE', (t: TestContext) => {
   const root = fixture(t, app);
   const saved = process.env['PATH'];
   t.after(() => { process.env['PATH'] = saved; });
-  process.env['PATH'] = os.tmpdir();
+  process.env['PATH'] = fixture(t, {});
   const report = audit(root, getTS(), { integrations: ['deno-check'] });
   assert.equal(report.status, 'INCOMPLETE');
   assert.equal(report.integrations?.[0]?.version, 'UNAVAILABLE');
