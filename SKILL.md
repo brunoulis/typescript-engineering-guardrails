@@ -21,10 +21,6 @@ metadata:
 
 # TypeScript engineering guardrails
 
-Identify the affected runtime, package, resolved dependencies and callers. For a local implementation, preserve the public type and runtime contracts, including validation, ordering and when errors become observable. Check who owns outstanding asynchronous work. Use the package's type check and behavioral tests for the change.
+Use the affected package's runtime, lockfile and callers. Preserve observable validation, ordering, error timing and ownership of pending work. Run its type check and behavioral tests. Read related source together and expand check output on failure.
 
-- For external input or serialization, consult [types and contracts](references/types-and-contracts.md). For concurrency or bounded resources, consult [async and performance](references/async-performance.md).
-- For authorization or persistence, trace the actual request through the affected boundary and consult [security](references/security.md) or the relevant database guide.
-- For audit, refactor, migration, dependency changes, runtime interoperability, or deployment and database work, select the appropriate workflow and references in the [engineering guide](engineering-guide.md). Audit the source read-only unless edits are requested.
-
-For an implementation, report the behavior delivered, commands actually run and any limitation that matters to its use. For an audit, lead with the finding and consequence. Respect the requested response format.
+Use the relevant section for [external data contracts](references/types-and-contracts.md), [bounded asynchronous work](references/async-performance.md) or [authorization](references/security.md). Trace authorization and persistence through the request boundary. For audits, migrations, deployment, databases or runtime interoperability, select the workflow in the [engineering guide](engineering-guide.md). Audit read-only unless edits are requested. Report the behavior, checks and material limits.
