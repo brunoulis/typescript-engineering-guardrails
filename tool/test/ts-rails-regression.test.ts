@@ -22,6 +22,10 @@ function fixture(t: TestContext, entries: Record<string, string>) {
 const tick = String.fromCharCode(96);
 const interpolation = '$' + '{';
 const cases: [string, string, string, number][] = [
+  ['conditional cleanup return masks a rejection', 'async function f() { try { await work(); } finally { if (done) return 1; } }', 'RETURN_IN_FINALLY', 1],
+  ['nested cleanup return leaves the outer finally', 'function f() { try { work(); } finally { try { return 1; } finally { close(); } } }', 'RETURN_IN_FINALLY', 1],
+  ['callback owns its cleanup return', 'function f() { try { return work(); } finally { items.map(x => { return x; }); } }', 'RETURN_IN_FINALLY', 0],
+  ['return after cleanup', 'function f() { try { work(); } finally { close(); } return 1; }', 'RETURN_IN_FINALLY', 0],
   ['any is a lead', 'let value: any;', 'EXPLICIT_ANY', 1],
   ['unknown is not any', 'let value: unknown;', 'EXPLICIT_ANY', 0],
   ['any in strings/comments is ignored', 'const s = "any"; // any\n', 'EXPLICIT_ANY', 0],

@@ -34,7 +34,10 @@ function rawJSON(node: ts.Expression, ts: Compiler): boolean {
 
 export function inspectSource(source: ts.SourceFile, ts: Compiler, emit: Emit, semantic?: SemanticRules) {
   const at = (node: ts.Node) => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
-  function walk(node: ts.Node): void {
+  function walk(node: ts.Node, inFinally = false): void {
+    if (inFinally && ts.isReturnStatement(node)) {
+      emit('RETURN_IN_FINALLY', 'P2', at(node), 'Returning from finally can replace a pending error or return value; check the exceptional path');
+    }
     if (node.kind === ts.SyntaxKind.AnyKeyword) {
       emit('EXPLICIT_ANY', 'P2', at(node), 'Review explicit any and its trust boundary');
     }
@@ -64,7 +67,9 @@ export function inspectSource(source: ts.SourceFile, ts: Compiler, emit: Emit, s
         emit('POTENTIALLY_UNBOUNDED_CONCURRENCY', 'P2', at(node), 'Check input size and concurrency limits; bounded maps are legitimate');
       }
     }
-    ts.forEachChild(node, walk);
+    const cleanup = ts.isTryStatement(node) ? node.finallyBlock : undefined;
+    const enclosingCleanup = inFinally && !ts.isFunctionLike(node);
+    ts.forEachChild(node, (child) => walk(child, enclosingCleanup || child === cleanup));
   }
   walk(source);
 

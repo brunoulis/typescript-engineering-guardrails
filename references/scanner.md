@@ -71,6 +71,7 @@ All results are P2/P3 HEURISTIC, never automatic P0/P1.
 | --- | --- |
 | EXPLICIT_ANY | Explicit any AST keyword; interop/generics may be valid; implicit any belongs to compiler diagnostics |
 | NON_NULL_ASSERTION | Postfix assertion; review the established invariant |
+| RETURN_IN_FINALLY | A return exits cleanup in the current function and can replace an earlier return or thrown value. Nested functions have their own return target. |
 | EMPTY_CATCH | No statements, including comment-only catches; deliberate probes/fallbacks can be valid |
 | UNVALIDATED_JSON_CAST | Direct raw JSON assertions including await/conditional/logical forms; syntax cannot distinguish every serializer, typed refines builtin signatures |
 | AUTH_SECURITY_DISABLED | Literal true at two option names; syntax name alone proves no auth reachability |
