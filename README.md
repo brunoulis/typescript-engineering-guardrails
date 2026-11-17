@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.gif" alt="TypeScript Engineering Guardrails logo" width="480">
+</p>
+
 # TypeScript Engineering Guardrails — Node, Bun, Deno
 
 A portable skill for backend implementation, audit, review and refactoring, with a read-only TypeScript auditor and executable HTTP/database evidence. Preserve feature-local `types/`, `interfaces/` and `constants/`, runtime validators in `schemas/`, and existing project conventions without empty scaffolding.
