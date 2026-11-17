@@ -1,0 +1,15 @@
+{
+  "exclude": [".test-artifacts/", "worker/target/"],
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
+  },
+  "tasks": {
+    "build:native": "cargo build --release --locked --manifest-path worker/Cargo.toml --bins",
+    "check": "deno fmt --check && deno lint && deno check *.ts schemas/*.ts types/*.ts constants/*.ts",
+    "test": "deno test --no-prompt --allow-run=./worker/target/release/telemetry-worker,./worker/target/release/telemetry-worker.exe,./worker/target/release/fault_fixture,./worker/target/release/fault_fixture.exe --allow-read=./.test-artifacts --allow-write=./.test-artifacts",
+    "bench": "deno bench --no-prompt --allow-run=./worker/target/release/telemetry-worker,./worker/target/release/telemetry-worker.exe --allow-read=./worker/target/release/telemetry-worker,./worker/target/release/telemetry-worker.exe benchmark.ts",
+    "load": "deno run --no-prompt --allow-run=./worker/target/release/telemetry-worker,./worker/target/release/telemetry-worker.exe --allow-read=./worker/target/release/telemetry-worker,./worker/target/release/telemetry-worker.exe load.ts"
+  }
+}

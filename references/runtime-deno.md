@@ -31,3 +31,11 @@ The Node command launches Deno subprocesses and verifies actual missing-environm
 The Node-based negative-test harness separately owns process creation. This targeted evidence does not establish the Node HTTP/auth backend on Deno or every npm/native dependency. Missing Deno or an unexecuted permission check remains pending; do not call Node and label it Deno coverage.
 
 Sources: [Deno configuration](https://docs.deno.com/runtime/fundamentals/configuration/), [Node/npm interoperability](https://docs.deno.com/runtime/fundamentals/node/) and [security permissions](https://docs.deno.com/runtime/fundamentals/security/). Match official guidance to the installed version before API or permission changes.
+
+## Native integration decisions
+
+Load [native interoperability](native-interoperability.md) only for measured CPU work, an existing native capability or requested interoperability. Keep Hono/auth/Drizzle and a working backend communicator in place. `deno_core` ops belong to embedding/building a custom runtime; they are not an integration layer for a conventional Hono service.
+
+Review IPC executable allowlists with `--allow-run`, environment/cwd inheritance and actual deployment process support. FFI and Node-API require `--allow-ffi`; addons also need compatible local `node_modules` and prepared platform binaries. Review exact package scripts and artifact source/hash before authorized preparation, and verify these requirements against the selected Deno release and addon. Neither permission sandboxes native code; a child has its own OS access. Build-tool privileges and runtime permissions are different evidence.
+
+The [isolated stdio worker example](../examples/deno-native-worker/README.md) exposes one batched domain operation and documents its own runtime, release artifact, limits and checks. It is not a replacement for an existing communicator or proof of a performance gain. This profile does not infer that its execution covers FFI, Node-API, Wasm or other platforms. Follow its recorded commands/results and keep missing performance/distribution evidence explicit.

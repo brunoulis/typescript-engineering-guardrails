@@ -30,6 +30,7 @@ Load references *only as relevant*:
 - `references/timescaledb.md`: identified TimescaleDB hypertables, partition-aware uniqueness, buckets, aggregates, columnstore and retention; do not presume the extension is installed.
 - `references/security.md`: OWASP risks, tenants, authn/authz, supply chain.
 - `references/async-performance.md`: queues, aborts, memory, profiling.
+- `references/native-interoperability.md`: load for a measured CPU bottleneck, existing native dependency/capability or requested interoperability; TS algorithm/worker alternatives, one batched boundary, permissions and total-cost proof. TypeScript remains the default; preserve a working backend communicator. Consult Rust/C++ skills only if available and relevant, without requiring their installation.
 - `references/testing-and-ci.md`: test pyramid, release gates, version-aware commands.
 - `references/refactoring.md`: triage, parity, reversible migrations.
 - `references/audit-protocol.md`: classification, evidence, independent review.
@@ -54,6 +55,8 @@ Preserve observable contracts or explicitly identify intentional migration chang
 
 **R1 Preserve observable contracts:** request/response shape, status, error mapping, authentication, authorization, ordering, side effects, DB schema, migrations, queues and webhook behavior. For refactors write regression/characterization tests first when feasible.
 
+Unchanged exported types do not prove unchanged payload/event semantics, encoding or generated consumers. Map producer/channel/real consumer and runtime validation separately from static analysis. Version messages when independently deployed compatibility needs it, not every internal object. See `references/types-and-contracts.md`.
+
 **R2 Zero ornamental architecture:** No controller→service→repository→interface→factory chain by default; no mandatory classes, DI container, hexagonal layers, microservices, packages or monorepo. Each new abstraction must identify an actual change boundary, dependency or testing problem. Keep trivial CRUD simple. Compare smallest change with a more modular alternative.
 
 **R2a Explicit code organization (project preference):** Prefer dedicated `types/`, `interfaces/`, `constants/` directories inside each feature; create `shared/types/`, `shared/interfaces/`, `shared/constants/` only for genuinely shared definitions. Locate runtime validators in `schemas/`, not `types/`. Keep files close to their owners, avoid duplicate interface/type/schema declarations, empty folders and needless interface-per-class boilerplate. See `references/code-organization.md`. Existing project conventions prevail unless the user requests a migration.
@@ -71,6 +74,8 @@ Preserve observable contracts or explicitly identify intentional migration chang
 **R8 Test meaningful paths:** characterize success, invalid input, missing/expired session, forbidden resource, tenant boundary, partial DB failure, cancellation, race/retry, and observable API contract as relevant. Don't add tests merely to increase coverage percentages.
 
 **R9 No speculative optimization:** profile actual workload, capture p50/p95/p99, throughput, RSS/heap, DB time and event-loop lag when relevant; compare before/after on same conditions. Caches, workers and runtime migration need evidence.
+
+For native work, compare algorithm/data layout and a TypeScript worker with IPC/FFI/Node-API/Wasm; `deno_core` is for custom runtime embedding. Require a demonstrated total advantage or necessary existing capability, explicit contract/ownership/batching/failure cleanup and deployment proof. Measure total CPU/RAM and end-to-end tails; a faster kernel with worse overall cost can warrant keeping TS. See `references/native-interoperability.md`.
 
 **R10 Small safe diffs:** inspect user changes; avoid unrelated rewrites, blanket formatting or automatic dependency upgrades. No destructive commands without explicit authorization; never modify a project during `audit`.
 
@@ -115,6 +120,10 @@ The scanner emits P2/P3 `HEURISTIC` leads only, with `source`, `test` or `config
 ## 4. Handoff contract
 
 For a small correction, explain the change, actual validation and remaining uncertainty briefly. For substantial work provide: detected runtime + versions; scope including skipped paths/parse diagnostics; contract/invariant list; findings `[severity, confidence, file:line, evidence, impact, smallest fix, verification, disposition]`; design alternatives and rejection reasons; files changed; exact checks executed + outputs; before/after metrics or UNMEASURED; residual risks, rollback and independent-review result.
+
+Use the compact change-surface and verification blocks in `templates/audit-report.md`: base/candidate/diff identity; file/reason and semantic before/after; endpoints/jobs/events, DB effects and actual consumers; new retry/cache/resource state owner and closure; observed versus inferred scenario inventory/denominator; before-fail/after-pass evidence or explicit gap; feature-off/conditional runtime evidence; first proposal versus current complexity. Attribute findings to introduced/pre-existing/unknown and retain legitimate uses or accepted limits with reasons. Neither severity labels nor review counts establish defects or justify churn.
+
+Per contract, separate built/tested/integration/release evidence and record exact runtime/OS/feature/framework/driver/server/package/artifact, command/exit, selected/executed/pass/fail/skip/disabled counts, location/date and candidate freshness. Use PASS/FAIL/UNVERIFIED/N/A with reasons; unknown counts stay unknown. Zero/all-skipped/stale tests cannot verify behavior; a runner failure stays FAIL. Connect effective lock/overrides/forks and build to distributed package/consumer only when applicable. Logging needs activation/frequency/sink/volume/redaction and contextual blocking/backpressure evidence. Scale local changes with justified N/A; add no infrastructure merely to fill fields and do not change auditor JSON/SARIF formats for this documentary contract.
 
 For HTTP/SQL flows, choose evidence that matches the integration: `examples/backend/README.md` covers fast Hono/SQLite regression with injected identity; `examples/postgres-backend/README.md` covers actual Better Auth sessions, Drizzle, persisted membership, tenant/owner predicates, concurrent idempotency and PostgreSQL task/outbox rollback. `examples/data/README.md` covers dedicated PostgreSQL/TimescaleDB roles, RLS, pools, migrations and actual Node/Bun/Deno driver executions. These packages own independent locks and destructive local fixtures; never reuse production services or credentials. Runtime execution and configured CI are separate claims. Preserve feature-local `types/`, `interfaces/`, `constants/` and `schemas/` only where needed.
 

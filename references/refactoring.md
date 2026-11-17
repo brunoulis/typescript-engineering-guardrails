@@ -15,3 +15,7 @@ For a requested or justified library update, compare the installed and target ve
 7. Independent reviewer tries to demonstrate a contract violation and overengineering. Document rollback and residual debt.
 
 For Node→Bun/Deno migration, test actual native packages, `node:` API compatibility, worker model, instrumentation, env/cookies, TLS, DB drivers and permissions. Never assume compile success proves runtime parity.
+
+Use the [change-surface report](../templates/audit-report.md) for file/reason → semantic before/after → endpoint/job/event/DB effect → real consumer → evidence. Include new retry/cache/timer state owners, invalidation/closure and failure/shutdown; unknown affected-path denominator, missing before-fail/after-pass or feature-off evidence remain explicit. Keep findings introduced by the change distinct from prior debt and reviewer labels.
+
+If revisions add state, dependencies, layers or lifecycle rules, compare first proposal with current candidate and the smallest workable correction; see [churn review](anti-slop.md). A necessary state is allowed; extra workaround flags do not become justified through review count. Connect effective lock/overrides/forks and preparation/build output with the distributed package's actual consumer smoke test. Do not install another service matrix for a report. For justified CPU/native work, use the optional [native decision record](../templates/refactor-plan.md) and preserve the backend's existing communicator while it meets requirements.
