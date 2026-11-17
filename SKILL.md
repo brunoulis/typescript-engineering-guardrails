@@ -21,6 +21,6 @@ metadata:
 
 # TypeScript engineering guardrails
 
-Use the affected package's runtime, lockfile and callers. Preserve observable validation, ordering, error timing and ownership of pending work. Run its type check and behavioral tests. Read related source together and expand check output on failure.
+Use the package's runtime, lockfile and callers. Preserve validation, ordering, error timing and ownership of pending work. In async failure tests, attach the rejection check and settle outstanding test promises before awaiting the aggregate unless the contract guarantees early rejection. Run type and behavior checks. Expand failures.
 
 Use the relevant section for [external data contracts](references/types-and-contracts.md), [bounded asynchronous work](references/async-performance.md) or [authorization](references/security.md). Trace authorization and persistence through the request boundary. For audits, migrations, deployment, databases or runtime interoperability, select the workflow in the [engineering guide](engineering-guide.md). Audit read-only unless edits are requested. Report the behavior, checks and material limits.
