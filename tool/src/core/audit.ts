@@ -12,6 +12,7 @@ import { validateOptions } from './config.js';
 import { analyzeProject } from './dependency-graph.js';
 import { externalTools } from './external-tools.js';
 import { inspectFrameworks } from '../rules/frameworks.js';
+import { inspectSql } from '../rules/sql.js';
 export function audit(root: string, ts: Compiler, options: AuditOptions = {}): AuditReport {
   compilerAPI(ts);
   options = validateOptions(options);
@@ -66,6 +67,7 @@ export function audit(root: string, ts: Compiler, options: AuditOptions = {}): A
         if (typed && !resolved) return;
         inspectSource(resolved?.source ?? source, ts, emit, resolved ? semanticRules(ts, resolved.checker, resolved.program, options.concurrencyLimit) : undefined);
         inspectFrameworks(resolved?.source ?? source, ts, emit);
+        inspectSql(resolved?.source ?? source, ts, emit);
         inspectedSources.set(file, resolved?.source ?? source);
         report.filesInspected++;
       }

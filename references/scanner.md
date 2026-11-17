@@ -139,3 +139,7 @@ Each runs in a temporary snapshot made of the inspected sources plus `deno.json(
 | `deno-audit` | `deno audit` | `DENO_AUDIT_ADVISORY` (P2 for high/critical, otherwise P3) on `deno.lock` | Requires `deno.lock` (without it Deno reports no vulnerabilities, a false clean result). Sends package names and versions to the Deno advisory service. Each advisory is tagged `reachable from entrypoints` or `not in the entrypoint graph`; an advisory is a lead for `R0a`-compliant upgrade work, not a reason to upgrade blindly |
 
 These findings come from the project's tools, so they are evidence of what Deno reports, not a security grade. They do not feed `--score`.
+
+## SQL interpolation rules
+
+`SQL_STRING_INTERPOLATION` and `SQL_DYNAMIC_IDENTIFIER` (P2, heuristic) inspect `execute`, `executeMany`, `query` and `queryStream` calls, whatever the receiver, whose static text looks like a SQL statement and which interpolate or concatenate something that is not a constant of the same file. Numbered placeholders (`` :${n} ``, `` $${n} ``), string/number literals and same-file `const` fragments are cleared; parameters, imports, calls and shadowed names are leads. They do not follow imports, wrappers or call sites and do not prove injection. A request-controlled value in a clause position is the case to review first. See [Oracle](oracle.md) for the Oracle context and the `doctor oracle` environment preflight (`node scripts/ts-rails-audit.cjs doctor oracle --root TARGET`).

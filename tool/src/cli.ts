@@ -8,8 +8,10 @@ import { compareBaseline, fingerprints, writeBaseline } from './core/baseline.js
 import { textReport } from './reporters/text.js';
 import { jsonReport } from './reporters/json.js';
 import { sarif } from './reporters/sarif.js';
+import { doctorMain } from './doctor-cli.js';
 
 export function main(args: string[] = process.argv.slice(2)): number {
+  if (args[0] === 'doctor') return doctorMain(args.slice(1));
   try {
     let root = '.', format = 'text', fail = false, config: string | undefined;
     let baseline: string | undefined, destination: string | undefined, failNew = false, replace = false;
@@ -44,7 +46,7 @@ export function main(args: string[] = process.argv.slice(2)): number {
         case '--fail-on-new': failNew = true; break;
         case '--replace-baseline': replace = true; break;
         case '--help':
-          console.log('Usage: node scripts/ts-rails-audit.cjs --root DIR [--mode syntax|typed] [--project TSCONFIG] [--config JSON] [--path FILE_OR_DIR] [--exclude-tests] [--score] [--integration ' + INTEGRATIONS.join('|') + '] [--format text|json|sarif] [--baseline JSON] [--write-baseline JSON] [--replace-baseline] [--fail-on-new] [--fail-on-signals]');
+          console.log('Usage: node scripts/ts-rails-audit.cjs doctor oracle [--root DIR] [--client-dir DIR] [--min-client MAJOR[.MINOR]] [--format text|json]\n       node scripts/ts-rails-audit.cjs --root DIR [--mode syntax|typed] [--project TSCONFIG] [--config JSON] [--path FILE_OR_DIR] [--exclude-tests] [--score] [--integration ' + INTEGRATIONS.join('|') + '] [--format text|json|sarif] [--baseline JSON] [--write-baseline JSON] [--replace-baseline] [--fail-on-new] [--fail-on-signals]');
           return 0;
         default: throw Error('Unknown argument ' + args[i]);
       }
