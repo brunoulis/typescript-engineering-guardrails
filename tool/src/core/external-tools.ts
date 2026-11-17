@@ -6,6 +6,8 @@ import type { AuditOptions, AuditReport, Scope } from '../types/report.js';
 import type { SourceFile } from 'typescript';
 import { skillRoot, message } from './compiler.js';
 import { inside, isTest, relative } from './project-discovery.js';
+import { isDenoIntegration } from '../constants/integrations.js';
+import { denoTools } from './deno-tools.js';
 
 interface ToolResult { version: string; value: unknown }
 export function runBounded(executable: string, args: string[], cwd: string, timeout = 30000): string {
@@ -29,6 +31,10 @@ function object(value: unknown): Record<string, unknown> {
 export function externalTools(root: string, sources: Map<string, SourceFile>, options: AuditOptions, report: AuditReport): void {
   if (!options.integrations?.length) return;
   report.integrations = [];
+  const deno = options.integrations.filter(isDenoIntegration);
+  if (deno.length) denoTools(root, sources, [...new Set(deno)], report);
+  const classic = options.integrations.filter((name): name is 'knip' | 'dependency-cruiser' => !isDenoIntegration(name));
+  if (!classic.length) return;
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'rails-snapshot-'));
   try {
     const selected = new Set<string>();
@@ -69,7 +75,7 @@ export function externalTools(root: string, sources: Map<string, SourceFile>, op
       const scope: Scope = file === 'package.json' ? 'config' : isTest(file) ? 'test' : 'source';
       report.results.push({ code, file, line, detail, scope, severity: 'P3', confidence: 'HEURISTIC' });
     };
-    for (const name of [...new Set(options.integrations)]) {
+    for (const name of [...new Set(classic)]) {
       const before = report.results.length;
       try {
         const result = execute(name, temp, name === 'knip' ? ['--config', 'knip.json', '--reporter', 'json', '--no-progress', '--no-gitignore', '--no-config-hints', '--no-tag-hints'] : ['--config', 'cruise.json', '--output-type', 'json', ...selected]);

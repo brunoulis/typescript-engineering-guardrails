@@ -120,3 +120,22 @@ For promise linting use the opt-in [typed ESLint recipe](../tool/src/recipes/typ
 | COMPLETE + --fail-on-new and new leads | 2 | Explicit regression policy |
 
 Ordering is deterministic and locations are one-based/root-relative. Original parser checks preserve successful-file findings when others fail. No-source scope is INCOMPLETE. Existing declaration/build/test exclusions remain visible. Use [corpus](corpus.md), [measurement artifact](../docs/verification/benchmark-v2.json) and [verification record](../docs/verification/2026-11-16-v2.md) for actual evidence, not generalized accuracy/performance claims.
+
+## Deno integrations
+
+For a Deno project the syntax rules cannot resolve import maps or JSR, and `typed` reports `DENO_SEMANTICS_UNSUPPORTED`. The Deno integrations run the project's own tools instead:
+
+```sh
+node scripts/ts-rails-audit.cjs --root TARGET --integration deno-check --integration deno-lint --integration deno-graph --integration deno-audit
+```
+
+Each runs in a temporary snapshot made of the inspected sources plus `deno.json(c)`, its `importMap` file and `deno.lock` as **data**. `.env`, certificates, `node_modules`, scripts and other configuration are never copied and the audited tree is never written. Deno's own cache is written outside the target. A missing `deno` executable, missing configuration, an unexpected output shape or a timeout makes the report `INCOMPLETE`; none of them is reported as clean. Parsers are pinned to Deno 2.9.8 output.
+
+| Integration | Runs | Finding | Notes |
+| --- | --- | --- | --- |
+| `deno-check` | `deno check` over every snapshot file | `DENO_TYPE_ERROR` (P2) | Finds errors in files no entrypoint reaches, which `deno check src/main.ts` misses |
+| `deno-lint` | `deno lint --json` with the project's lint config | `DENO_LINT` (P3) | `no-explicit-any` and `no-non-null-assertion` are not repeated; `EXPLICIT_ANY` and `NON_NULL_ASSERTION` own them |
+| `deno-graph` | `deno info --json` per entrypoint | `DENO_UNREACHABLE_FILE` (P3) | Entrypoints: conventional `main/mod/index/server/app` (root or `src/`), files named in `deno.json` tasks/exports, all test files. No entrypoint found → `INCOMPLETE`. Dynamic imports with computed specifiers, scripts and Lambda handlers can be false positives |
+| `deno-audit` | `deno audit` | `DENO_AUDIT_ADVISORY` (P2 for high/critical, otherwise P3) on `deno.lock` | Requires `deno.lock` (without it Deno reports no vulnerabilities, a false clean result). Sends package names and versions to the Deno advisory service. Each advisory is tagged `reachable from entrypoints` or `not in the entrypoint graph`; an advisory is a lead for `R0a`-compliant upgrade work, not a reason to upgrade blindly |
+
+These findings come from the project's tools, so they are evidence of what Deno reports, not a security grade. They do not feed `--score`.

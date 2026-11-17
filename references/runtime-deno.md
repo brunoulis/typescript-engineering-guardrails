@@ -14,6 +14,10 @@ For a read-only typecheck with Deno2.9.8 and an existing prepared dependency tre
 
 A canonical test task can build native/FFI artifacts, create disposable databases or require Redis even when named unit. Read its runner and guards before execution. For strict read-only inspection, use source/check evidence and mark those test suites unexecuted; a passing compiler is not a passing suite. Never load the project's .env or run its migration, backfill or policy-install commands merely to inspect versions or validate this skill. Put project-specific reports outside the distributable skill and derive minimal synthetic regressions without shipping private source, credentials or environment values.
 
+## Native checks through the auditor
+
+`--integration deno-check|deno-lint|deno-graph|deno-audit` automates the read-only native checks described above against a data-only snapshot (see [scanner](scanner.md#deno-integrations)). Prefer them to hand-run commands for a first pass; they report `INCOMPLETE` rather than clean when Deno, the lockfile, the network or an entrypoint is missing. `deno test` is intentionally not wrapped: a suite can build native artifacts, need disposable databases or a native client (for example an Oracle client of a minimum version); run it only after reading its runner, with the narrowest permissions.
+
 ## Executed data contracts
 
 [The data package](../examples/data/README.md) records **Deno 2.9.8** with npm **postgres.js 3.4.7**, PostgreSQL **17.6** and TimescaleDB **2.22.1**. After its separate `npm ci --ignore-scripts` and `npm run db:up`, run from that package:

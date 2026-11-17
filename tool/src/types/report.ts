@@ -8,13 +8,15 @@ export interface Finding {
   line: number; scope: Scope; detail: string; fingerprint?: string;
 }
 export interface Diagnostic { code: string; file: string; line: number; message: string }
+export type DenoIntegration = 'deno-check' | 'deno-lint' | 'deno-graph' | 'deno-audit';
+export type IntegrationName = 'knip' | 'dependency-cruiser' | DenoIntegration;
 export interface Boundary { from: string; disallow: string[] }
 export interface AuditOptions {
   paths?: string[]; excludeTests?: boolean; maxFileBytes?: number;
   mode?: 'syntax' | 'typed'; project?: string; score?: boolean;
   rules?: Record<string, boolean>; boundaries?: Boundary[];
   concurrencyLimit?: number; complexityLimit?: number; cloneMinTokens?: number;
-  integrations?: ('knip' | 'dependency-cruiser')[];
+  integrations?: IntegrationName[];
 }
 export interface Edge { from: string; to: string; line: number; typeOnly: boolean }
 export interface Dimension { grade: number | null; evidence: { file: string; line: number; detail: string }[]; note: string }

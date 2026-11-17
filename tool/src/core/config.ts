@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import type { AuditOptions } from '../types/report.js';
 import { RULE_CODES } from '../constants/rules.js';
+import { isIntegration } from '../constants/integrations.js';
 
 function record(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null && !Array.isArray(value); }
 export function validateOptions(value: unknown, config = false): AuditOptions {
@@ -18,7 +19,7 @@ export function validateOptions(value: unknown, config = false): AuditOptions {
   if (value['paths'] !== undefined && (!Array.isArray(value['paths']) || !value['paths'].length || !value['paths'].every(p => typeof p === 'string' && p.length > 0))) throw Error('paths must be a nonempty array of paths');
   if (value['rules'] !== undefined && (!record(value['rules']) || !Object.values(value['rules']).every(v => typeof v === 'boolean'))) throw Error('rules must map rule codes to booleans');
   if (record(value['rules'])) for (const code of Object.keys(value['rules'])) if (!RULE_CODES.has(code)) throw Error('Unknown rule: ' + code);
-  if (value['integrations'] !== undefined && (!Array.isArray(value['integrations']) || !value['integrations'].every(p => p === 'knip' || p === 'dependency-cruiser'))) throw Error('Invalid integrations');
+  if (value['integrations'] !== undefined && (!Array.isArray(value['integrations']) || !value['integrations'].every(isIntegration))) throw Error('Invalid integrations');
   if (value['boundaries'] !== undefined && (!Array.isArray(value['boundaries']) || !value['boundaries'].every(b => record(b) && Object.keys(b).every(k => ['from', 'disallow'].includes(k)) && typeof b['from'] === 'string' && b['from'].length && Array.isArray(b['disallow']) && b['disallow'].every(p => typeof p === 'string' && p.length)))) throw Error('Invalid boundaries');
   const { version: _version, ...options } = value;
   return options as AuditOptions;

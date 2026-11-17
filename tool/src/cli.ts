@@ -3,6 +3,7 @@ import type { AuditOptions } from './types/report.js';
 import { audit } from './core/audit.js';
 import { getTS, message } from './core/compiler.js';
 import { readConfig } from './core/config.js';
+import { INTEGRATIONS, isIntegration } from './constants/integrations.js';
 import { compareBaseline, fingerprints, writeBaseline } from './core/baseline.js';
 import { textReport } from './reporters/text.js';
 import { jsonReport } from './reporters/json.js';
@@ -34,7 +35,7 @@ export function main(args: string[] = process.argv.slice(2)): number {
         }
         case '--integration': {
           const name = value(++i);
-          if (name !== 'knip' && name !== 'dependency-cruiser') throw Error('Invalid integration: ' + name);
+          if (!isIntegration(name)) throw Error('Invalid integration: ' + name);
           (cli.integrations ??= []).push(name); break;
         }
         case '--fail-on-signals': fail = true; break;
@@ -43,7 +44,7 @@ export function main(args: string[] = process.argv.slice(2)): number {
         case '--fail-on-new': failNew = true; break;
         case '--replace-baseline': replace = true; break;
         case '--help':
-          console.log('Usage: node scripts/ts-rails-audit.cjs --root DIR [--mode syntax|typed] [--project TSCONFIG] [--config JSON] [--path FILE_OR_DIR] [--exclude-tests] [--score] [--integration knip|dependency-cruiser] [--format text|json|sarif] [--baseline JSON] [--write-baseline JSON] [--replace-baseline] [--fail-on-new] [--fail-on-signals]');
+          console.log('Usage: node scripts/ts-rails-audit.cjs --root DIR [--mode syntax|typed] [--project TSCONFIG] [--config JSON] [--path FILE_OR_DIR] [--exclude-tests] [--score] [--integration ' + INTEGRATIONS.join('|') + '] [--format text|json|sarif] [--baseline JSON] [--write-baseline JSON] [--replace-baseline] [--fail-on-new] [--fail-on-signals]');
           return 0;
         default: throw Error('Unknown argument ' + args[i]);
       }

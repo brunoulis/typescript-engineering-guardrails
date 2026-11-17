@@ -34,7 +34,7 @@ Load references *only as relevant*:
 - `references/testing-and-ci.md`: test pyramid, release gates, version-aware commands.
 - `references/refactoring.md`: triage, parity, reversible migrations.
 - `references/audit-protocol.md`: classification, evidence, independent review.
-- `references/scanner.md`: setup, scope, completeness, rule limits and exit codes.
+- `references/scanner.md`: setup, scope, completeness, rule limits, exit codes and the optional Deno integrations (`deno-check`, `deno-lint`, `deno-graph`, `deno-audit`) for Deno projects.
 - `references/quality-score.md`: opt-in dependency graph and separate quality dimensions; scores are evidence summaries, not security grades or test coverage.
 - `references/framework-signals.md`: import-aware framework leads, explicit external integrations and their source-snapshot limits.
 - `references/corpus.md`: labeled corpus, counterexamples and reproducible measurements; no extrapolation to arbitrary projects.
@@ -63,7 +63,7 @@ Unchanged exported types do not prove unchanged payload/event semantics, encodin
 
 **R3 Own the boundaries:** validate `unknown` data from HTTP, webhooks, queues, ENV, external APIs and DB assumptions where trust demands it. Type annotations do not validate runtime inputs. Never pretend `as`, `!`, `any`, or `JSON.parse(...) as T` establish truth.
 
-**R4 Security is contextual but compulsory:** authentication is not authorization. Prove object- and property-level authorization, tenant scoping, privilege checks, secret hygiene, CSRF/origin/cookie assumptions, replay protection for signed webhooks, and bounded request resources. Do not invent a security bypass to make tests pass.
+**R4 Security is contextual but compulsory:** authentication is not authorization. Prove object- and property-level authorization, tenant scoping, privilege checks, secret hygiene, CSRF/origin/cookie assumptions, replay protection for signed webhooks, and bounded request resources. Do not invent a security bypass to make tests pass. A dependency advisory needs reachability from real entrypoints and a fix version before any upgrade; R0a still governs the upgrade itself.
 
 **R5 Explicit dependency direction:** HTTP adapter knows the application logic; domain/pure logic should not depend on Hono context, global singleton state or framework request objects without justification. Cross-feature imports use intentional public APIs; no automatic 'common' extraction.
 
