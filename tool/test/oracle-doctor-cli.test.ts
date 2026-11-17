@@ -17,10 +17,12 @@ function tree(t: TestContext, files: Record<string, string>): string {
 }
 
 test('doctor CLI exit codes: 0 OK, 2 too old, 1 usage', t => {
-  // Every platform's library name is present so the test does not depend on the host OS.
-  const libraries = ['oci.dll', 'libclntsh.so.19.1', 'libclntsh.dylib.19.1'];
   const files: Record<string, string> = { 'src/db.ts': 'import oracledb from "oracledb";\noracledb.initOracleClient({ libDir: "x" });\n' };
-  for (const dir of ['c/instantclient_19_21', 'c/instantclient_12_2']) for (const library of libraries) files[`${dir}/${library}`] = '';
+  for (const [directory, libraryVersion] of [['instantclient_19_21', '19.1'], ['instantclient_12_2', '12.2']]) {
+    files[`c/${directory}/oci.dll`] = '';
+    files[`c/${directory}/libclntsh.so.${libraryVersion}`] = '';
+    files[`c/${directory}/libclntsh.dylib.${libraryVersion}`] = '';
+  }
   const root = tree(t, files);
   const common = ['doctor', 'oracle', '--root', root, '--format', 'json'];
   assert.equal(main([...common, '--client-dir', path.join(root, 'c/instantclient_19_21')]), 0);
