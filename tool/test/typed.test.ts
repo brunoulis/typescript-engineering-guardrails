@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type { TestContext } from 'node:test';
-import { audit, getTS } from '../src/index.js';
+import { audit, files, getTS } from '../src/index.js';
 
 function project(t: TestContext, source: string, extras: Record<string, string> = {}): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rails-project-'));
@@ -74,6 +74,28 @@ test('target noCheck cannot hide missing imports or type errors from typed audit
   assert.ok(report.diagnostics.some(d => d.code === 'TS2322'));
   assert.ok(report.diagnostics.some(d => d.code === 'TS2307'));
 });
+test('typed audit accepts Windows short root paths without treating in-root types as external', { skip: process.platform !== 'win32' }, t => {
+  const root = project(t, 'export const response: Response = new Response();', {
+    'tsconfig.json': JSON.stringify({ compilerOptions: { strict: true, types: ['node'], lib: ['ES2022'], target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext' }, files: ['a.ts'] }),
+  });
+  fs.mkdirSync(path.join(root, 'node_modules/@types'), { recursive: true });
+  fs.cpSync(path.resolve('node_modules/@types/node'), path.join(root, 'node_modules/@types/node'), { recursive: true });
+  fs.cpSync(path.resolve('node_modules/undici-types'), path.join(root, 'node_modules/undici-types'), { recursive: true });
+  const alias = spawnSync('cmd.exe', ['/d', '/u', '/c', `for %I in ("${root}") do @echo %~sI`], {
+    encoding: 'utf16le', windowsVerbatimArguments: true,
+  });
+  assert.equal(alias.status, 0, alias.stderr);
+  const shortRoot = alias.stdout.trim();
+  if (shortRoot.toLowerCase() === fs.realpathSync.native(root).toLowerCase()) {
+    t.skip('The temporary volume does not provide 8.3 aliases'); return;
+  }
+  const report = audit(shortRoot, getTS(), { mode: 'typed' });
+  assert.equal(report.status, 'COMPLETE', JSON.stringify(report.diagnostics));
+  assert.equal(report.filesInspected, 1);
+  assert.equal(fs.realpathSync.native(report.root), report.root);
+  assert.deepEqual(files(shortRoot), [path.join(fs.realpathSync.native(root), 'a.ts')]);
+});
+
 for (const libs of [['ES2022'], ['ES2022', 'DOM']]) {
   test('Node fetch/Response/Request JSON boundaries remain visible with libraries ' + libs.join(','), t => {
     const root = project(t, `export async function read(response: Response, request: Request) {

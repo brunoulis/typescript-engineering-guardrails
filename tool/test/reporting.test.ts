@@ -7,13 +7,25 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import Ajv from 'ajv';
 
-function fixture(t: TestContext) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rails-report-'));
+function fixture(t: TestContext, temporaryDirectory = os.tmpdir()) {
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(temporaryDirectory, 'rails-report-')));
   t.after(() => fs.rmSync(root, { force: true, recursive: true }));
   fs.writeFileSync(path.join(root, 'a.ts'), 'export const x: any = 1;');
   const run = (...args: string[]) => spawnSync(process.execPath, [path.resolve('scripts/ts-rails-audit.cjs'), '--root', root, ...args], { encoding: 'utf8' });
   return { root, run };
 }
+test('baseline fixtures work when the system temporary directory is an alias', t => {
+  const { root } = fixture(t);
+  const physical = path.join(root, 'physical-temp'), alias = path.join(root, 'aliased-temp');
+  fs.mkdirSync(physical);
+  fs.symlinkSync(physical, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  const nested = fixture(t, alias);
+  const baseline = path.join(nested.root, 'baseline.json');
+  const result = nested.run('--write-baseline', baseline);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(fs.existsSync(baseline), true);
+});
+
 test('baseline remains known after line insertion and new findings fail only the explicit policy', t => {
   const { root, run } = fixture(t);
   const baseline = path.join(root, 'baseline.json');

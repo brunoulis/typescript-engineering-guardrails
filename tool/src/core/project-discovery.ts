@@ -54,6 +54,6 @@ export function collect(root: string, options: AuditOptions) {
 }
 
 export function files(root: string, options: AuditOptions = {}) {
-  return collect(fs.realpathSync(root), options).files;
+  return collect(fs.realpathSync.native(root), options).files;
 }
 

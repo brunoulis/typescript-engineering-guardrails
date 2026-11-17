@@ -15,7 +15,8 @@ import { inspectFrameworks } from '../rules/frameworks.js';
 export function audit(root: string, ts: Compiler, options: AuditOptions = {}): AuditReport {
   compilerAPI(ts);
   options = validateOptions(options);
-  root = fs.realpathSync(path.resolve(root));
+  // Match the compiler's expansion of Windows 8.3 aliases before checking boundaries.
+  root = fs.realpathSync.native(path.resolve(root));
   if (!fs.statSync(root).isDirectory()) throw Error('--root must be a directory');
   const maxFileBytes = options.maxFileBytes ?? MAX_FILE_BYTES;
   if (!Number.isSafeInteger(maxFileBytes) || maxFileBytes < 1) throw Error('maxFileBytes must be a positive integer');
