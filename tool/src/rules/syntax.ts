@@ -67,6 +67,9 @@ export function inspectSource(source: ts.SourceFile, ts: Compiler, emit: Emit, s
         emit('POTENTIALLY_UNBOUNDED_CONCURRENCY', 'P2', at(node), 'Check input size and concurrency limits; bounded maps are legitimate');
       }
     }
+    if (ts.isAwaitExpression(node) && semantic?.asyncForEach(node)) {
+      emit('AWAIT_ASYNC_FOREACH', 'P2', at(node), 'Array.forEach discards callback promises. Await each operation or join the work with the required concurrency limit.');
+    }
     const cleanup = ts.isTryStatement(node) ? node.finallyBlock : undefined;
     const enclosingCleanup = inFinally && !ts.isFunctionLike(node);
     ts.forEachChild(node, (child) => walk(child, enclosingCleanup || child === cleanup));

@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+const script = path.resolve('scripts/package-context.cjs');
+test('package context reads requested sources and switches to inventory before printing oversized inputs', t => {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'ts-context-'));
+  t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
+  const cwd = path.join(parent, 'pkg');
+  fs.mkdirSync(path.join(cwd, 'src'), { recursive: true });
+  fs.writeFileSync(path.join(cwd, 'src', 'a.ts'), 'export const answer = 42;');
+  fs.writeFileSync(path.join(cwd, 'request.md'), 'Support the new format.');
+  fs.writeFileSync(path.join(parent, 'outside.ts'), 'outside sentinel');
+  const run = (...args: string[]) => spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8' });
+  const small = run('--brief', 'request.md');
+  assert.equal(small.status, 0, small.stderr);
+  assert.match(small.stdout, /Support the new format/);
+  assert.match(small.stdout, /export const answer/);
+  fs.writeFileSync(path.join(cwd, 'src', 'big.ts'), 'oversized content '.repeat(1024));
+  const big = run();
+  assert.match(big.stdout, /big\.ts/);
+  assert.doesNotMatch(big.stdout, /oversized content|export const answer/);
+  const selected = run('src/a.ts');
+  assert.match(selected.stdout, /export const answer/);
+  assert.doesNotMatch(selected.stdout, /big\.ts/);
+  const outside = run('../outside.ts');
+  assert.notEqual(outside.status, 0);
+  assert.doesNotMatch(outside.stdout, /outside sentinel/);
+});

@@ -16,6 +16,25 @@ function project(t: TestContext, source: string, extras: Record<string, string> 
   }
   return root;
 }
+test('awaiting array forEach cannot join async callbacks', t => {
+  const root = project(t, [
+    'async function run(xs: number[], values: readonly number[], save: (v: number) => Promise<void>) {',
+    '  await xs.forEach(async x => { await save(x); });',
+    '  await (values.forEach(save));',
+    '  await xs.forEach(x => { void x; });',
+    '  await Promise.all(xs.map(save));',
+    '  const custom = { async forEach(cb: typeof save) { await cb(1); } };',
+    '  await custom.forEach(save);',
+    '  xs.forEach(save);',
+    '  await values.forEach(x => x > 0 ? save(x) : undefined);',
+    '  await (await xs["forEach"](save));',
+    '}',
+  ].join('\n'));
+  const report = audit(root, getTS(), { mode: 'typed' });
+  assert.equal(report.status, 'COMPLETE', JSON.stringify(report.diagnostics));
+  assert.deepEqual(report.results.filter(f => f.code === 'AWAIT_ASYNC_FOREACH').map(f => f.line), [2, 3, 10]);
+});
+
 test('solution references are inspected without builds and missing references stay incomplete', t => {
   const root = project(t, 'export {};', {
     'tsconfig.json': '{"files":[],"references":[{"path":"./lib"}]}',

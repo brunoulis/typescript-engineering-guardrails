@@ -21,6 +21,8 @@ metadata:
 
 # TypeScript engineering guardrails
 
-Use the package's runtime, lockfile and callers. Preserve validation, ordering, error timing and ownership of pending work. In async failure tests, attach the rejection check and settle outstanding test promises before awaiting the aggregate unless the contract guarantees early rejection. Run type and behavior checks. Expand failures.
+For a package edit, get the source, tests, package inventory and test command with `node <skill-dir>/scripts/package-context.cjs` from the package root. Pass `--brief FILE` for a file-backed request, or append selected paths for a larger package.
 
-Use the relevant section for [external data contracts](references/types-and-contracts.md), [bounded asynchronous work](references/async-performance.md) or [authorization](references/security.md). Trace authorization and persistence through the request boundary. For audits, migrations, deployment, databases or runtime interoperability, select the workflow in the [engineering guide](engineering-guide.md). Audit read-only unless edits are requested. Report the behavior, checks and material limits.
+Use the snapshot for one patch. Cover untested behavior with shared fixtures. Check exact failure values, including falsy ones. Observe rejection and settle controlled peers before awaiting the aggregate unless early rejection is guaranteed. In one shell call run the project checks, then the added tests against that build, preserving exit statuses. Report the result.
+
+Use [the engineering guide](engineering-guide.md) for audits, framework boundaries and migrations.

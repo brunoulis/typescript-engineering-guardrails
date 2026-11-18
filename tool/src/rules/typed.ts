@@ -2,7 +2,11 @@ import type * as ts from 'typescript';
 import type { Compiler } from '../types/report.js';
 import { access, unwrap } from './syntax.js';
 
-export interface SemanticRules { rawJSON(node: ts.Expression): boolean; unbounded(node: ts.CallExpression): boolean }
+export interface SemanticRules {
+  rawJSON(node: ts.Expression): boolean;
+  unbounded(node: ts.CallExpression): boolean;
+  asyncForEach(node: ts.AwaitExpression): boolean;
+}
 export function semanticRules(ts: Compiler, checker: ts.TypeChecker, program: ts.Program, limit = 16): SemanticRules {
   function builtin(call: ts.CallExpression, owner: string, method: string): boolean {
     const declaration = checker.getResolvedSignature(call)?.declaration;
@@ -48,7 +52,23 @@ export function semanticRules(ts: Compiler, checker: ts.TypeChecker, program: ts
     }
     return false;
   }
-  return { rawJSON, unbounded(node) {
+  function asyncForEach(node: ts.AwaitExpression): boolean {
+    let call: ts.Expression = node.expression;
+    while (ts.isParenthesizedExpression(call)) call = call.expression;
+    if (!ts.isCallExpression(call) || access(call.expression, ts)?.name !== 'forEach') return false;
+    if (!builtin(call, 'Array', 'forEach') && !builtin(call, 'ReadonlyArray', 'forEach')) return false;
+    const callback = call.arguments[0];
+    if (!callback) return false;
+    const signatures = checker.getTypeAtLocation(callback).getCallSignatures();
+    return signatures.length > 0 && signatures.every(signature => {
+      const result = checker.getReturnTypeOfSignature(signature);
+      return (result.isUnion() ? result.types : [result]).every(type => {
+        const awaited = checker.getAwaitedType(type);
+        return !!type.getProperty('then') && !!awaited && awaited !== type;
+      });
+    });
+  }
+  return { rawJSON, asyncForEach, unbounded(node) {
     if (!promiseAll(node)) return false;
     return node.arguments.some(arg => {
       arg = unwrap(arg, ts);
