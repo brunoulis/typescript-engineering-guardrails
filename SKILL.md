@@ -21,8 +21,14 @@ metadata:
 
 # TypeScript engineering guardrails
 
-For patch-only clients, prepare a request with `node <skill-dir>/scripts/package-context.cjs --task FILE`; the caller applies the patch and runs project checks. Use the supplied snapshot directly. Otherwise get one from the package root with `node <skill-dir>/scripts/package-context.cjs --brief FILE` (omit `--brief FILE` for an inline request). It includes the brief, file names, source, tests and runner. Read another file only for a missing dependency or a partial inventory.
+For small interactive edits, read the request, relevant sources, nearby tests and runner in one shell call. From a package root with ripgrep, substitute the actual brief, file patterns and installed skill path in this command.
 
-Patch source and focused tests together. Use small shared fixtures. When failure can drain in-flight work, attach the rejection assertion first. Reject one worker, settle every other pending worker, then await the assertion. Check the original reason, including falsy values. For iterator cleanup, fail a read and assert which acquired iterators close, in order, including the one that failed.
+```sh
+rg --heading --no-line-number --max-filesize 32K "^" -g "*.{ts,tsx,mts,cts}" -g "*.{test,spec}.*" -g "AGENTS.md" -g "package.json" -g "tsconfig*.json" -g "run-tests.*" -g "TASK.md" . "<skill-dir>/SKILL.md"
+```
 
-Run the supplied checks and any new tests they omit together, using the same build. Give the result in a sentence. For audits and migrations use the [engineering guide](engineering-guide.md).
+Use explicit file paths for a larger package. If ripgrep is unavailable, `node <skill-dir>/scripts/package-context.cjs --brief FILE` returns a bounded snapshot. Inspect missing dependencies as needed.
+
+Patch source and focused tests together. Use small shared fixtures. If failure may drain in-flight work, attach the rejection assertion before triggering failure. Settle all controlled peers independently of the aggregate, even for late rejections. A peer scheduled from the aggregate’s catch or finally can deadlock the test. Await the assertion after settling the peers. Check the original reason, including falsy values. For iterator cleanup, fail a read and assert which acquired iterators close, in order, including the one that failed.
+
+Verify the edit in one shell call. Run the supplied checks, then any new tests the runner omits against that build. Propagate failures. If a diff check is useful, include it in this call after confirming the package is in a Git worktree. Report the results. Patch-only clients can use `scripts/package-context.cjs --task FILE`. For audits and migrations use the [engineering guide](engineering-guide.md).
