@@ -8,6 +8,12 @@ A portable skill for backend implementation, audit, review and refactoring, with
 
 **2.0.0** adds strict TypeScript tool sources, optional semantic context and dependency analysis, separate quality dimensions, JSON configuration, baselines/SARIF, controlled external integrations and real PostgreSQL/TimescaleDB examples. Findings remain P2/P3 **HEURISTIC** review leads. No scan certifies security, authorization, test quality or production readiness.
 
+## Draft a patch for a small package
+
+Run `node <skill-dir>/scripts/package-context.cjs --task TASK.md` from the package root. Append specific source, test and runner paths to narrow the input. A zero exit status yields a request containing the brief, selected files and instructions for a patch. Exit 2 means the snapshot is incomplete. Select fewer files before sending it. Review the selected contents before sharing them with a coding client.
+
+Use a text-only request or a read-only client with shell tools disabled. For Codex CLI, send the prepared request on stdin to `codex exec --sandbox read-only --disable shell_tool --disable unified_exec --output-last-message change.patch -`. Choose a fresh output path. Save only the returned diff in the patch file. Inspect the diff, run `git apply --check --recount change.patch`, then `git apply --recount change.patch`. Run the project's type and behavior checks and any new tests that its runner omits. If a check fails, include the diagnostic in the next request.
+
 ## Prepare and run
 
 See [installation](INSTALL.md) for portable folder and host discovery instructions. Instructions can be used without installing the optional tool dependencies. For the auditor, run inside this skill folder, never inside the audited application:

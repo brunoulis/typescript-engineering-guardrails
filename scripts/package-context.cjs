@@ -51,12 +51,14 @@ function discover() {
 function printContext(args) {
   if (args.includes('--help')) {
     console.log('node package-context.cjs [--brief FILE] [FILE ...] (run from the package root)');
+    console.log('node package-context.cjs --task FILE [FILE ...] prints skill guidance and package context for an editor request');
     return;
   }
+  const task = args[0] === '--task';
   let brief;
-  if (args[0] === '--brief') {
+  if (task || args[0] === '--brief') {
     args.shift();
-    if (!args.length) throw new Error('--brief needs a file');
+    if (!args.length) throw new Error('Expected a task or brief file');
     brief = localFile(args.shift());
   }
   const result = args.length ? { files: args.map(localFile), incomplete: false } : discover();
@@ -64,10 +66,16 @@ function printContext(args) {
   if (result.rootEntries) console.log('Package root' + (result.incomplete ? ' (partial)' : '') + ': ' + result.rootEntries.slice(0, 48).join(', ') + (result.rootEntries.length > 48 ? ', …' : ''));
   const sizes = files.map(file => fs.statSync(path.join(root, file)).size);
   if (result.incomplete || sizes.reduce((a, b) => a + b, 0) > byteLimit) {
+    if (task) process.exitCode = 2;
     console.log('Select the relevant files or symbols. ' + (result.incomplete ? 'Inventory is partial.' : 'Combined sources exceed 12 KiB.'));
     for (const [i, file] of files.slice(0, 48).entries()) console.log(sizes[i] + ' B  ' + file);
     if (files.length > 48) console.log('Additional paths omitted.');
     return;
+  }
+  if (task) {
+    console.log('Draft a unified Git patch directly from the supplied package snapshot, without tool calls. The caller collected these files and will apply the patch and run the project checks locally.');
+    console.log('Return only the patch, with relative a/ and b/ paths, context lines and /dev/null for new files. Include the implementation and regression tests. For missing context, request the specific files instead. Leave the working tree to the caller.');
+    console.log(fs.readFileSync(path.join(__dirname, '..', 'SKILL.md'), 'utf8').trimEnd());
   }
   let remaining = byteLimit;
   for (const file of files) {
@@ -81,7 +89,11 @@ function printContext(args) {
         used += count;
       }
     } finally { fs.closeSync(fd); }
-    if (used > remaining) { console.log('File grew beyond the output budget: ' + file); continue; }
+    if (used > remaining) {
+      if (task) process.exitCode = 2;
+      console.log('File grew beyond the output budget: ' + file);
+      continue;
+    }
     remaining -= used;
     console.log('\n--- ' + file + ' ---\n' + buffer.toString('utf8', 0, used).trimEnd());
   }
